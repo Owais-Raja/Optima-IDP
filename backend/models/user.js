@@ -66,7 +66,19 @@ const UserSchema = new mongoose.Schema(
           default: 1,
         }
       }
-    ]
+    ],
+
+    /**
+     * Refresh Token:
+     * Stores the JWT refresh token for this user's current session.
+     * - Used to obtain new access tokens without logging in again
+     * - Cleared on logout for security
+     * - Only one refresh token per user (single session support)
+     */
+    refreshToken: {
+      type: String,
+      default: null,
+    }
   },
 
   // Automatically adds createdAt and updatedAt timestamps

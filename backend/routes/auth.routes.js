@@ -33,4 +33,42 @@ router.post("/register", validate(schemas.register), authController.register);
  */
 router.post("/login", validate(schemas.login), authController.login);
 
+/**
+ * REFRESH TOKEN ROUTE
+ * --------------------------------------
+ * POST /api/auth/refresh
+ * 
+ * Allows clients to obtain a new access token using a refresh token.
+ * This prevents users from having to login again every 15 minutes.
+ * 
+ * Request Body:
+ * {
+ *   "refreshToken": "jwt_refresh_token_here"
+ * }
+ * 
+ * Response:
+ * {
+ *   "accessToken": "new_jwt_access_token"
+ * }
+ */
+router.post("/refresh", authController.refresh);
+
+/**
+ * LOGOUT ROUTE
+ * --------------------------------------
+ * POST /api/auth/logout
+ * 
+ * Invalidates the user's refresh token, effectively logging them out.
+ * Requires the user to send their access token in Authorization header.
+ * 
+ * Headers:
+ * Authorization: Bearer <access_token>
+ * 
+ * Response:
+ * {
+ *   "message": "Logged out successfully"
+ * }
+ */
+router.post("/logout", authController.logout);
+
 module.exports = router;

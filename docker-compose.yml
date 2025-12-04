@@ -1,0 +1,174 @@
+# ==============================================================================
+# Docker Compose Configuration for Optima IDP
+# ==============================================================================
+# This file orchestrates all services needed to run the complete application:
+# - MongoDB (Database)
+# - Redis (Cache & Queue)
+# - Backend (Node.js API)
+# - Recommender (Python ML Worker)
+#
+# USAGE:
+# ------
+# Start all services:    docker-compose up -d
+# View logs:             docker-compose logs -f
+# Stop all services:     docker-compose down
+# Rebuild after changes: docker-compose up --build
+#
+# NETWORKING:
+# -----------
+# Docker Compose creates an internal network where services can talk to each
+# other using service names as hostnames (e.g., "mongodb://mongo:27017")
+# ==============================================================================
+
+services:
+  # ============================================================================
+  # SERVICE 1: MongoDB Database
+  # ============================================================================
+  # Stores all application data: users, IDPs, skills, resources
+  #
+  # PERSISTENCE:
+  # - Uses a named volume 'mongo_data' to persist data across container restarts
+  # - Data survives even if you run 'docker-compose down'
+  # - To wipe data, use: docker-compose down -v
+  # ============================================================================
+  mongo:
+    image: mongo:6
+    container_name: optima_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017" # Expose to host for debugging with MongoDB Compass
+    volumes:
+      - mongo_data:/data/db # Persistent storage
+    command: [ "mongod", "--quiet", "--logpath", "/dev/null" ]
+      # environment:
+      # Optional: Uncomment to enable authentication
+      # MONGO_INITDB_ROOT_USERNAME: admin
+      # MONGO_INITDB_ROOT_PASSWORD: your_secure_password
+    networks:
+      - optima_network
+
+  # ============================================================================
+  # SERVICE 2: Redis Cache & Queue
+  # ============================================================================
+  # Two purposes:
+  # 1. Cache API responses for better performance
+  # 2. Job queue for recommendation processing
+  #
+  # NOTE: This runs in-memory by default (no persistence)
+  # If you need persistence, add:
+  #   command: redis-server --appendonly yes
+  #   volumes:
+  #     - redis_data:/data
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: optima_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379" # Expose to host for debugging with Redis CLI
+    command: redis-server --loglevel warning
+    networks:
+      - optima_network
+
+  # ============================================================================
+  # SERVICE 3: Backend API (Node.js + Express)
+  # ============================================================================
+  # Main application server
+  # - Serves REST API endpoints
+  # - Handles authentication
+  # - Enqueues recommendation jobs to Redis
+  #
+  # ENVIRONMENT VARIABLES:
+  # - Connection strings use service names (mongo, redis)
+  # - JWT secrets should be changed in production!
+  # - PYTHON_SERVICE_URL points to recommender if using HTTP (not used with queue)
+  # ============================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: optima_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000" # Expose API to host
+    command: npm run dev
+    environment:
+      # Server Configuration
+      - PORT=5000
+      - NODE_ENV=production
+
+      # Database Connection (using service name 'mongo')
+      - MONGO_URI=mongodb://mongo:27017/optima_idp
+
+      # Redis Connection (using service name 'redis')
+      - REDIS_URL=redis://redis:6379
+
+      # JWT Secrets (CHANGE THESE IN PRODUCTION!)
+      - JWT_SECRET=your_super_secret_key_change_this_in_production
+      - JWT_REFRESH_SECRET=your_refresh_secret_key_change_this_too
+
+      # Optional: If you add HTTP endpoints to recommender
+      - PYTHON_SERVICE_URL=http://recommender:8000
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - optima_network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    # ============================================================================
+    # SERVICE 4: Recommender Worker (Python ML)
+    # ============================================================================
+    # Background worker that:
+    # - Listens to Redis queue for recommendation jobs
+    # - Generates ML-powered recommendations
+    # - Updates MongoDB with results
+    #
+    # NO PORT EXPOSURE:
+    # - This is a worker, not a server
+    # - It connects to other services but doesn't accept incoming connections
+    #
+    # CRASH RECOVERY:
+    # - Uses brpoplpush pattern to prevent job loss
+    # - If worker crashes, jobs remain in processing queue
+    # ============================================================================
+  recommender:
+    build:
+      context: ./recommender
+      dockerfile: Dockerfile
+    container_name: optima_recommender
+    restart: unless-stopped
+    environment:
+      # Database Connection
+      - MONGO_URI=mongodb://mongo:27017/optima_idp
+
+      # Redis Connection
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - optima_network
+    volumes:
+      - ./recommender:/app
+    # ==============================================================================
+    # NETWORKS
+    # ==============================================================================
+    # Custom network for all services to communicate
+    # Using bridge driver (default) for single-host setup
+    # ==============================================================================
+networks:
+  optima_network:
+    driver: bridge
+
+# ==============================================================================
+# VOLUMES
+# ==============================================================================
+# Named volumes for persistent data
+# These survive container restarts and even 'docker-compose down'
+# To remove: docker-compose down -v (WARNING: deletes all data!)
+# ==============================================================================
+volumes:
+  mongo_data:
+    driver: local

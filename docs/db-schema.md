@@ -14,6 +14,7 @@ Stores all users in the system (Employees, Managers, Admins).
 | `skills` | Array | No | List of user skills |
 | `skills.skillId` | ObjectId | - | Reference to `Skill` model |
 | `skills.level` | Number | - | Skill level (1-10), default 1 |
+| `refreshToken` | String | No | JWT refresh token for session management |
 | `createdAt` | Date | - | Auto-generated timestamp |
 | `updatedAt` | Date | - | Auto-generated timestamp |
 

@@ -10,7 +10,9 @@ Base URL: `/api` (typically)
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/auth/register` | Create a new user. Validates input (400 if invalid). | No |
-| `POST` | `/auth/login` | User login + get JWT. Validates input (400 if invalid). | No |
+| `POST` | `/auth/login` | User login. Returns `{ accessToken, refreshToken }`. | No |
+| `POST` | `/auth/refresh` | Get new access token using refresh token. | No |
+| `POST` | `/auth/logout` | Invalidate refresh token. | Yes |
 
 ### User Routes
 | Method | Endpoint | Description | Auth Required |

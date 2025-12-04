@@ -62,3 +62,7 @@ coverage/
 
 # Exclude backend tests
 backend/tests/
+
+# Docker volumes
+mongo_data/
+redis_data/

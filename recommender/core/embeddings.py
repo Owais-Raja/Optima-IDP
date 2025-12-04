@@ -1,3 +1,12 @@
+import warnings
+
+# Suppress noisy FutureWarning emitted by huggingface_hub inside sentence-transformers
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    module=r"huggingface_hub\.utils\._deprecation"
+)
+
 from sentence_transformers import SentenceTransformer
 import numpy as np
 

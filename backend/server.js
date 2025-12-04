@@ -66,13 +66,22 @@ app.use("/api/idp", require("./routes/idp.routes"));
 app.use("/api/performance", require("./routes/performance.routes"));
 app.use("/api/recommend", require("./routes/recommend.routes"));
 
-// Health check route
+// Root welcome route
 app.get("/", (req, res) => {
   res.json({
     message: "Optima IDP backend is running...",
     status: "healthy",
     timestamp: new Date().toISOString(),
     docs: "/api-docs"
+  });
+});
+
+// Lightweight health check for uptime monitoring
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
   });
 });
 

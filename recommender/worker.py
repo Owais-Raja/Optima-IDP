@@ -122,20 +122,109 @@ def process_job(job_data):
         # Optionally update IDP status to 'failed'
 
 def start_worker():
-    print(f"Worker listening on {QUEUE_NAME}...")
+    """
+    Reliable Worker with Crash Recovery
+    =====================================
+    
+    This worker implements the "Reliable Queue" pattern using Redis BRPOPLPUSH.
+    
+    WHY THIS MATTERS:
+    -----------------
+    If we just use BLPOP (pop and process), we have a race condition:
+    1. Job is popped from queue
+    2. Worker crashes before completing the job
+    3. Job is lost forever
+    
+    THE SOLUTION - The "Loop":
+    ---------------------------
+    Instead of popping, we use BRPOPLPUSH which atomically:
+    1. Pops job from main queue
+    2. Pushes it to a "processing" queue
+    3. Only after success, we remove it from processing queue
+    
+    If the worker crashes mid-job, the job stays in the processing queue
+    and can be recovered or retried.
+    
+    FLOW:
+    -----
+    recommendation_queue          recommendation_queue:processing
+    [job3, job2, job1]      →     [job1]  ← Being processed
+         ↓ BRPOPLPUSH              ↓ LREM (after success)
+    [job3, job2]                  []  ← Job complete, removed
+    """
+    
+    # Name of our backup/processing queue
+    PROCESSING_QUEUE = f"{QUEUE_NAME}:processing"
+    
+    print(f"🚀 Worker started successfully!")
+    print(f"📬 Listening on queue: {QUEUE_NAME}")
+    print(f"🔄 Processing queue: {PROCESSING_QUEUE}")
+    print(f"💾 Using Redis: {REDIS_URL}")
+    print("-" * 60)
+    
     while True:
         try:
-            # Blocking pop from right of queue
-            # Returns (queue_name, data)
-            result = redis_client.blpop(QUEUE_NAME, timeout=0)
+            # ============================================================
+            # STEP 1: ATOMIC POP & PUSH (The "Loop")
+            # ============================================================
+            # BRPOPLPUSH blocks until a job is available, then atomically:
+            # - Removes job from the RIGHT of QUEUE_NAME (FIFO order)
+            # - Pushes job to the LEFT of PROCESSING_QUEUE
+            # - Returns the job data
+            #
+            # timeout=0 means block indefinitely until a job arrives
+            job_json_bytes = redis_client.brpoplpush(
+                QUEUE_NAME, 
+                PROCESSING_QUEUE, 
+                timeout=0
+            )
             
-            if result:
-                queue, job_json = result
+            # If we get here, we have a job safely in the processing queue
+            if job_json_bytes:
+                job_json = job_json_bytes.decode('utf-8')
                 job = json.loads(job_json)
-                process_job(job.get('data'))
                 
+                # Log job details
+                user_id = job.get('data', {}).get('userId', 'unknown')
+                idp_id = job.get('data', {}).get('idpId', 'unknown')
+                print(f"\n✅ Job received - User: {user_id}, IDP: {idp_id}")
+                
+                # ============================================================
+                # STEP 2: DO THE WORK
+                # ============================================================
+                # The job is now safely in the processing queue.
+                # Even if we crash here, we won't lose the job.
+                start_time = time.time()
+                process_job(job.get('data'))
+                elapsed = time.time() - start_time
+                
+                print(f"⏱️  Processing completed in {elapsed:.2f}s")
+                
+                # ============================================================
+                # STEP 3: CLEANUP - Remove from Processing Queue
+                # ============================================================
+                # LREM removes the first occurrence of the value from the list
+                # Args: (key, count, value)
+                #   - count=1: remove first 1 occurrence from LEFT side
+                #   - count=-1: remove first 1 occurrence from RIGHT side
+                #   - count=0: remove ALL occurrences
+                redis_client.lrem(PROCESSING_QUEUE, 1, job_json)
+                
+                print(f"🎉 Job completed and removed from processing queue")
+                print("-" * 60)
+                
+        except json.JSONDecodeError as e:
+            print(f"❌ Invalid JSON in job: {e}")
+            # Malformed job - remove it to avoid infinite loop
+            try:
+                redis_client.lrem(PROCESSING_QUEUE, 1, job_json_bytes.decode('utf-8'))
+            except:
+                pass
+            
         except Exception as e:
-            print(f"Worker Loop Error: {e}")
+            print(f"⚠️  Worker Loop Error: {e}")
+            print(f"💡 Job remains in processing queue for recovery")
+            # Wait before retrying to avoid rapid failure loops
             time.sleep(1)
 
 if __name__ == "__main__":

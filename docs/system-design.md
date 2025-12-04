@@ -53,7 +53,23 @@ Optima IDP follows a microservices-inspired architecture with a main backend API
     *   **Python Worker** picks up job, runs ML logic, and updates IDP in MongoDB.
     *   Frontend polls for status change or receives update via WebSocket (future).
 
+## Deployment & Infrastructure
+
+### Containerization (Docker)
+The entire application is containerized using Docker Compose:
+*   **Backend**: Node.js 18 Alpine image.
+*   **Recommender**: Python 3.10 Slim image.
+*   **Database**: MongoDB 6.
+*   **Cache/Queue**: Redis 7.
+
+### Reliability Patterns
+*   **Reliable Queue**: The worker uses the `BRPOPLPUSH` pattern (RPOPLPUSH) to prevent data loss.
+    *   Jobs are atomically moved to a `processing` queue before execution.
+    *   If the worker crashes, the job remains in the processing queue for recovery.
+    *   Jobs are removed only after successful completion.
+
 ## Key Features
 *   **Role-Based Access Control (RBAC)**: Employee, Manager, Admin roles.
 *   **Intelligent Recommendations**: Suggests resources based on skill gaps and performance reviews.
 *   **Performance Integration**: IDPs are informed by manager feedback.
+*   **Secure Authentication**: Dual-token system (Access + Refresh) with server-side logout.

@@ -25,12 +25,15 @@ WORKDIR /app
 # SYSTEM DEPENDENCIES
 # ==============================================================================
 # Install build-essential for compiling Python packages that use C extensions
-# (numpy, scipy, scikit-learn all need this)
+# (numpy, scipy, scikit-learn, faiss-cpu all need this)
 #
 # We use --no-install-recommends to keep image size small
 # We clean up apt cache after to reduce image size
+# Using apt cache mount for faster rebuilds (BuildKit feature)
 # ==============================================================================
-RUN apt-get update && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
@@ -44,9 +47,17 @@ RUN apt-get update && \
 # ==============================================================================
 COPY requirements.txt .
 
-# Install Python packages
-# --no-cache-dir prevents pip from caching packages, saving space
-RUN pip install --no-cache-dir -r requirements.txt
+# Upgrade pip, setuptools, and wheel for better package resolution
+# This helps pip find pre-built wheels faster and reduces build time
+RUN pip install --upgrade pip setuptools wheel
+
+# Install Python packages with pip cache mount
+# This caches downloaded packages between builds, dramatically reducing rebuild time
+# The cache persists across builds, so unchanged packages don't need to be re-downloaded
+# Note: Requires Docker BuildKit (enabled by default in Docker 23.0+)
+# To enable manually: DOCKER_BUILDKIT=1 docker build ...
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy all application code
 COPY . .

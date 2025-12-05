@@ -59,7 +59,7 @@ const IDPSchema = new mongoose.Schema(
     // Status of the IDP
     status: {
       type: String,
-      enum: ["draft", "pending", "approved", "completed"],
+      enum: ["draft", "pending", "approved", "completed", "processing"],
       default: "draft"
     }
   },

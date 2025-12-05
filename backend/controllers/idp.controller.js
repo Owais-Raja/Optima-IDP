@@ -1,4 +1,4 @@
-const IDP = require("../models/IDP");
+const IDP = require("../models/idp");
 const User = require("../models/user");
 const Skill = require("../models/skill");
 const Resource = require("../models/resource");

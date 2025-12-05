@@ -108,7 +108,7 @@ services:
       - JWT_REFRESH_SECRET=your_refresh_secret_key_change_this_too
 
       # Optional: If you add HTTP endpoints to recommender
-      - PYTHON_SERVICE_URL=http://recommender:8000
+      - PYTHON_SERVICE_URL=http://recommender_api:8000
     depends_on:
       - mongo
       - redis
@@ -133,17 +133,14 @@ services:
     # - Uses brpoplpush pattern to prevent job loss
     # - If worker crashes, jobs remain in processing queue
     # ============================================================================
-  recommender:
+  recommender_worker:
     build:
       context: ./recommender
       dockerfile: Dockerfile
-    container_name: optima_recommender
+    container_name: optima_recommender_worker
     restart: unless-stopped
     environment:
-      # Database Connection
       - MONGO_URI=mongodb://mongo:27017/optima_idp
-
-      # Redis Connection
       - REDIS_URL=redis://redis:6379
     depends_on:
       - mongo
@@ -152,6 +149,29 @@ services:
       - optima_network
     volumes:
       - ./recommender:/app
+    command: [ "python", "worker.py" ]
+
+  recommender_api:
+    build:
+      context: ./recommender
+      dockerfile: Dockerfile
+    container_name: optima_recommender_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/optima_idp
+      - REDIS_URL=redis://redis:6379
+      - PORT=8000
+      - HOST=0.0.0.0
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - optima_network
+    volumes:
+      - ./recommender:/app
+    command: [ "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload" ]
     # ==============================================================================
     # NETWORKS
     # ==============================================================================

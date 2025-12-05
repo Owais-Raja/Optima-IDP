@@ -20,7 +20,18 @@ Uses a pre-trained model from HuggingFace.
 # Load a lightweight, efficient model
 # 'all-MiniLM-L6-v2' is fast and has good accuracy for semantic similarity
 MODEL_NAME = 'all-MiniLM-L6-v2'
-model = SentenceTransformer(MODEL_NAME)
+_model = None
+
+def get_model():
+    """
+    Lazy load the model to avoid startup crashes and timeouts.
+    """
+    global _model
+    if _model is None:
+        print(f"Loading embedding model: {MODEL_NAME}...")
+        _model = SentenceTransformer(MODEL_NAME)
+        print("Model loaded successfully.")
+    return _model
 
 def generate_embedding(text: str) -> np.ndarray:
     """
@@ -35,6 +46,7 @@ def generate_embedding(text: str) -> np.ndarray:
     if not text:
         return np.zeros(384) # Dimension of MiniLM-L6-v2
         
+    model = get_model()
     embedding = model.encode(text)
     return embedding
 
@@ -51,5 +63,6 @@ def generate_embeddings(texts: list[str]) -> np.ndarray:
     if not texts:
         return np.array([])
         
+    model = get_model()
     embeddings = model.encode(texts)
     return embeddings

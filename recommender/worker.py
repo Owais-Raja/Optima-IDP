@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import datetime
 import redis
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -44,15 +45,20 @@ def process_job(job_data):
         user = db.users.find_one({"_id": ObjectId(user_id)})
         idp = db.idps.find_one({"_id": ObjectId(idp_id)})
         all_skills = list(db.skills.find({}))
-        all_resources = list(db.resources.find({}).populate("skill") if hasattr(db.resources, 'populate') else db.resources.find({}))
-        # Note: PyMongo doesn't have populate. We need to manually join or just fetch.
-        # Resources in Mongo usually store skill ID.
-        # We need to fetch resources and maybe enrich them if ranker needs skill name.
-        # Let's assume resources have skill_id and we can map it.
+        # Fetch resources (PyMongo doesn't have populate like Mongoose)
+        # Resources should have skill reference stored as ObjectId or embedded object
+        all_resources = list(db.resources.find({}))
         
-        # Fix: Fetch resources and manually join skill data if needed
-        # For now, let's assume resources have what we need or we can look it up.
-        # The ranker expects resource objects.
+        # Enrich resources with skill data if needed
+        # If resources only have skill IDs, we can populate them manually
+        skill_map = {str(skill['_id']): skill for skill in all_skills}
+        for resource in all_resources:
+            skill_ref = resource.get('skill')
+            if skill_ref and isinstance(skill_ref, ObjectId):
+                # If skill is just an ObjectId, replace with full skill object
+                skill_id_str = str(skill_ref)
+                if skill_id_str in skill_map:
+                    resource['skill'] = skill_map[skill_id_str]
         
         if not user or not idp:
             print("User or IDP not found")
@@ -228,5 +234,4 @@ def start_worker():
             time.sleep(1)
 
 if __name__ == "__main__":
-    import datetime
     start_worker()

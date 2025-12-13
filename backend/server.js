@@ -61,16 +61,18 @@ app.use((req, res, next) => {
  * ----------------------------------------------------
  * Define all API routes here.
  */
-app.use("/api/auth", require("./routes/auth.routes"));
-app.use("/api/user", require("./routes/user.routes"));
-app.use("/api/skill", require("./routes/skill.routes"));
-app.use("/api/resource", require("./routes/resource.routes"));
-app.use("/api/idp", require("./routes/idp.routes"));
-app.use("/api/performance", require("./routes/performance.routes"));
-app.use("/api/recommender", require("./routes/recommender.routes"));
-app.use("/api/recommend", require("./routes/recommend.routes"));
-app.use("/api/admin", require("./routes/admin.routes"));
-app.use("/api/announcements", require("./routes/announcement.routes"));
+app.use("/api/auth", require("./routes/common/auth.routes"));
+app.use("/api/user", require("./routes/common/user.routes"));
+app.use("/api/skill", require("./routes/common/skill.routes"));
+app.use("/api/resource", require("./routes/common/resource.routes"));
+app.use("/api/idp", require("./routes/emp/idp.routes"));
+app.use("/api/performance", require("./routes/emp/performance.routes"));
+app.use("/api/emp-dashboard", require("./routes/emp/dashboard.routes"));
+app.use("/api/recommender", require("./routes/common/recommender.routes"));
+app.use("/api/recommend", require("./routes/common/recommend.routes"));
+app.use("/api/admin", require("./routes/admin/admin.routes"));
+app.use("/api/manager", require("./routes/manager/manager.routes"));
+app.use("/api/announcements", require("./routes/common/announcement.routes")); // Note: Check if this was common or admin in moves. Based on file listing it is in common.
 
 
 

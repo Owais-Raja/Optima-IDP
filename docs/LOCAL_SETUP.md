@@ -56,10 +56,17 @@ npm run dev
 *Expected Output:* `Server running on port 5000` and `MongoDB connected successfully`.
 
 ### Terminal 2: Recommender Service (Python)
+Make sure you have Python 3.9+ installed.
+
 ```powershell
 cd recommender
+
+# Create virtual env if not exists
+# python -m venv .venv
+
 # Activate virtual environment
 .\.venv\Scripts\Activate
+
 pip install -r requirements.txt
 python main.py
 ```

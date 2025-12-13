@@ -98,8 +98,12 @@ const AnnouncementSchema = new mongoose.Schema(
 // Index for efficient querying by company
 AnnouncementSchema.index({ company: 1, createdAt: -1 });
 
-// Index for checking expiration
+// Index for checking expiration (manual expiration field)
 AnnouncementSchema.index({ expiresAt: 1 });
+
+// AUTOMATIC DELETION: TTL Index
+// Delete documents 30 days (2592000 seconds) after creation
+AnnouncementSchema.index({ createdAt: 1 }, { expireAfterSeconds: 2592000 });
 
 // Virtual: view count
 AnnouncementSchema.virtual("viewCount").get(function () {

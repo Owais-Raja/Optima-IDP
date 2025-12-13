@@ -3,155 +3,124 @@ const mongoose = require("mongoose");
 /**
  * User Schema
  * ----------------------------------------
- * Stores all users in the system:
- * - Employees
- * - Managers
- * - Admins
+ * Core entity for the application. Stores all user types:
+ * - Employee: Standard user with IDP and Performance plans.
+ * - Manager: Manages a team of employees.
+ * - Admin: System administrator with full access.
  * 
- * Each user has:
- * - name: Full name of the user
- * - email: Unique login email
- * - password: Hashed password
- * - role: Determines access level
- * - skills: Array of skills with skill level
+ * Capability Highlights:
+ * - Role-based access control (RBAC) via 'role' field.
+ * - Multi-tenancy support via 'company' field.
+ * - Security features: hashed passwords, refresh tokens, MFA support, login history.
+ * - Skill Matrix: embedded 'skills' array with level tracking (1-10).
  */
 
 const UserSchema = new mongoose.Schema(
   {
-    // Full name of the user
+    // Full Name (Display Name)
     name: {
       type: String,
       required: true,
       trim: true,
     },
 
-    // Unique email address for login
+    // Email Address (Login Credentials)
     email: {
       type: String,
       required: true,
-      unique: true,   // no two users can have the same email
+      unique: true,   // Ensures global uniqueness
       lowercase: true,
       trim: true
     },
 
-    // Company Name for Multi-Tenancy
+    // Organization / Tenant Identifier
     company: {
       type: String,
       required: true,
       trim: true
     },
 
-    // Password will be hashed using bcrypt before saving
+    // Encrypted Password (bcrypt hash)
     password: {
       type: String,
       required: true,
     },
 
-    // User role → controls access permissions
+    // Role-Based Access Control
     role: {
       type: String,
       enum: ["employee", "manager", "admin"],
-      default: "employee", // default role is employee
+      default: "employee",
     },
 
-    // Profile Picture
+    // Profile Image (Stored as Buffer/Binary or URL in future)
     avatar: {
       data: Buffer,
       contentType: String
     },
 
-    // User Preferences
+    // User Customization & Preferences
     preferences: {
-      emailNotifications: {
-        type: Boolean,
-        default: true
-      },
-      darkMode: {
-        type: Boolean,
-        default: true
-      },
-      twoFactorEnabled: {
-        type: Boolean,
-        default: false
-      },
-      weeklyReports: {
-        type: Boolean,
-        default: true
-      },
-      systemBranding: {
-        type: Boolean,
-        default: true
-      }
+      emailNotifications: { type: Boolean, default: true },
+      darkMode: { type: Boolean, default: true },
+      twoFactorEnabled: { type: Boolean, default: false },
+      weeklyReports: { type: Boolean, default: true },
+      systemBranding: { type: Boolean, default: true }
     },
 
     /**
-     * Skills array:
-     * Each skill entry contains:
-     * - skillId: Reference to Skill model
-     * - level: How skilled the user is (1–10 scale)
+     * Skills Matrix
+     * Tracks the user's proficiency in various technical and soft skills.
+     * Used for:
+     * - Gap analysis (Current vs Required Level)
+     * - AI Recommendations
+     * - Manager reporting
      */
     skills: [
       {
         skillId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Skill",    // reference to Skill model
+          ref: "Skill", // References the centralized Skill catalog
         },
         level: {
           type: Number,
           min: 1,
           max: 10,
-          default: 1,
+          default: 1, // 1 = Novice, 10 = Expert
         }
       }
     ],
 
-    /**
-     * Refresh Token:
-     * Stores the JWT refresh token for this user's current session.
-     * - Used to obtain new access tokens without logging in again
-     * - Cleared on logout for security
-     * - Only one refresh token per user (single session support)
-     */
+    // Session Management: JWT Refresh Token
     refreshToken: {
       type: String,
       default: null,
     },
 
-    // Password reset workflow
-    resetPasswordToken: {
-      type: String,
-      default: null
-    },
-    resetPasswordExpires: {
-      type: Date,
-      default: null
-    },
+    // Password Reset Token & Expiry
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpires: { type: Date, default: null },
 
-    // Account Approval Status
-    // - Employees: Auto-verified (true)
-    // - Admins: Auto-verified via secret (true)
-    // - Managers: Pending approval (false)
+    // Account Verification Status
     isVerified: {
       type: Boolean,
-      default: true
+      default: true // Default true for internal tools; can be false for public registration
     },
 
-    // Last Login Timestamp
+    // Audit: Last Successful Login
     lastLogin: {
       type: Date,
       default: null
     },
 
-    // Company-Specific Security Settings (stored on admin user's record)
+    /**
+     * Company-Wide Settings (Active only on Admin users)
+     * Stores configuration for the entire tenant/company.
+     */
     companySettings: {
-      inactiveLockoutDays: {
-        type: Number,
-        default: 90
-      },
-      enforcePasswordPolicy: {
-        type: Boolean,
-        default: true
-      },
+      inactiveLockoutDays: { type: Number, default: 90 },
+      enforcePasswordPolicy: { type: Boolean, default: true },
+      // AI Recommendation Weights
       aiWeights: {
         skill_gap: { type: Number, default: 0.35 },
         skill_relevance: { type: Number, default: 0.25 },
@@ -160,28 +129,13 @@ const UserSchema = new mongoose.Schema(
         resource_type: { type: Number, default: 0.00 },
         skill_similarity: { type: Number, default: 0.00 }
       },
-      // Organizational Preferences
-      weeklyManagerReports: {
-        type: Boolean,
-        default: true
-      },
-      notifyManagerOnNewIDP: {
-        type: Boolean,
-        default: true
-      },
-      defaultTargetLevel: {
-        type: Number,
-        default: 5,
-        min: 1,
-        max: 10
-      },
-      timezone: {
-        type: String,
-        default: 'UTC'
-      }
+      weeklyManagerReports: { type: Boolean, default: true },
+      notifyManagerOnNewIDP: { type: Boolean, default: true },
+      defaultTargetLevel: { type: Number, default: 5, min: 1, max: 10 },
+      timezone: { type: String, default: 'UTC' }
     },
 
-    // Pending Profile Update Request
+    // Profile Update Request (Approval Workflow for limited fields)
     profileUpdateRequest: {
       field: { type: String, enum: ['name'], default: null },
       value: { type: String, default: null },
@@ -189,96 +143,44 @@ const UserSchema = new mongoose.Schema(
       requestedAt: { type: Date, default: null }
     },
 
-    // API Keys for programmatic access (admins only)
+    // API Keys (For Admin programmatic access)
     apiKeys: [
       {
-        keyHash: {
-          type: String,
-          required: true // bcrypt hashed API key
-        },
-        label: {
-          type: String,
-          required: true,
-          maxlength: 50
-        },
-        lastUsed: {
-          type: Date,
-          default: null
-        },
-        createdAt: {
-          type: Date,
-          default: Date.now
-        }
+        keyHash: { type: String, required: true },
+        label: { type: String, required: true, maxlength: 50 },
+        lastUsed: { type: Date, default: null },
+        createdAt: { type: Date, default: Date.now }
       }
     ],
 
-    // Active sessions for session management
+    // Active User Sessions
     sessions: [
       {
-        token: {
-          type: String,
-          required: true // session token or JWT ID
-        },
-        ip: {
-          type: String,
-          default: null
-        },
-        userAgent: {
-          type: String,
-          default: null
-        },
-        createdAt: {
-          type: Date,
-          default: Date.now
-        },
-        expiresAt: {
-          type: Date,
-          required: true
-        },
-        isRevoked: {
-          type: Boolean,
-          default: false
-        }
+        token: { type: String, required: true },
+        ip: { type: String, default: null },
+        userAgent: { type: String, default: null },
+        createdAt: { type: Date, default: Date.now },
+        expiresAt: { type: Date, required: true },
+        isRevoked: { type: Boolean, default: false }
       }
     ],
 
-    // Login history for security audit
+    // Login History Log
     loginHistory: [
       {
-        ip: {
-          type: String,
-          default: null
-        },
-        userAgent: {
-          type: String,
-          default: null
-        },
-        timestamp: {
-          type: Date,
-          default: Date.now
-        },
-        success: {
-          type: Boolean,
-          required: true
-        },
-        failureReason: {
-          type: String,
-          default: null
-        }
+        ip: { type: String, default: null },
+        userAgent: { type: String, default: null },
+        timestamp: { type: Date, default: Date.now },
+        success: { type: Boolean, required: true },
+        failureReason: { type: String, default: null }
       }
     ],
 
-    // MFA (Two-Factor Authentication)
-    mfaEnabled: {
-      type: Boolean,
-      default: false
-    },
-    mfaSecret: {
-      type: String,
-      default: null // TOTP secret for authenticator apps
-    },
+    // Multi-Factor Authentication
+    mfaEnabled: { type: Boolean, default: false },
+    mfaSecret: { type: String, default: null },
 
-    // Manager reference (for employees only)
+    // Hierarchy: Manager Assignment
     manager: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -286,7 +188,6 @@ const UserSchema = new mongoose.Schema(
     }
   },
 
-  // Automatically adds createdAt and updatedAt timestamps
   { timestamps: true }
 );
 

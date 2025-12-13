@@ -39,8 +39,18 @@ const IDPSchema = new mongoose.Schema(
     // Recommended learning resources
     recommendedResources: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Resource"
+        resource: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Resource"
+        },
+        status: {
+          type: String,
+          enum: ["pending", "in_progress", "completed"],
+          default: "pending"
+        },
+        completedAt: {
+          type: Date
+        }
       }
     ],
 
@@ -61,6 +71,12 @@ const IDPSchema = new mongoose.Schema(
       type: String,
       enum: ["draft", "pending", "approved", "completed", "processing"],
       default: "draft"
+    },
+
+    // Target Date for completion (Used for Deadlines)
+    targetCompletionDate: {
+      type: Date,
+      default: null
     }
   },
 

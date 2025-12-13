@@ -1,14 +1,16 @@
 import { Link, NavLink, Outlet, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './store/useAuth.jsx';
-import Home from './pages/Home.jsx';
-import Profile from './pages/Profile.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import ForgotPassword from './pages/ForgotPassword.jsx';
-import ResetPassword from './pages/ResetPassword.jsx';
+import Home from './common/pages/Home.jsx';
+import Profile from './common/pages/Profile.jsx';
+import Dashboard from './common/pages/Dashboard.jsx';
+import ForgotPassword from './common/pages/ForgotPassword.jsx';
+import ResetPassword from './common/pages/ResetPassword.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
-import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx';
-import IDPCreate from './pages/IDPCreate.jsx';
+import Login from './common/pages/Login.jsx';
+import Register from './common/pages/Register.jsx';
+import IDPCreate from './common/pages/IDPCreate.jsx';
+import AdminSettings from './admin/pages/AdminSettings.jsx';
+import ManagerSettings from './manager/pages/ManagerSettings.jsx';
 import ScrollToAnchor from './components/ScrollToAnchor.jsx';
 
 function AppShell() {
@@ -37,6 +39,34 @@ function AppShell() {
                   >
                     Dashboard
                   </NavLink>
+
+                  {user.role === 'admin' && (
+                    <NavLink
+                      to="/admin/settings"
+                      className={({ isActive }) =>
+                        `text-sm font-medium transition-colors ${isActive
+                          ? 'text-purple-400'
+                          : 'text-slate-300 hover:text-white'
+                        }`
+                      }
+                    >
+                      Settings
+                    </NavLink>
+                  )}
+
+                  {user.role === 'manager' && (
+                    <NavLink
+                      to="/manager/settings"
+                      className={({ isActive }) =>
+                        `text-sm font-medium transition-colors ${isActive
+                          ? 'text-purple-400'
+                          : 'text-slate-300 hover:text-white'
+                        }`
+                      }
+                    >
+                      Settings
+                    </NavLink>
+                  )}
 
                   <NavLink
                     to="/profile"
@@ -86,6 +116,8 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/manager/settings" element={<ManagerSettings />} />
             <Route path="/idp/create" element={<IDPCreate />} />
           </Route>
         </Route>

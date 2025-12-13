@@ -68,7 +68,7 @@ function RegisterForm() {
                 <p className="text-slate-400">
                     {role === 'admin'
                         ? 'Create a workspace for your organization'
-                        : 'Create your employee account'}
+                        : 'Create your account'}
                 </p>
             </div>
 
@@ -78,18 +78,18 @@ function RegisterForm() {
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 mb-6">
-                {['employee', 'admin'].map((r) => (
+            <div className="grid grid-cols-3 gap-3 mb-6">
+                {['employee', 'manager', 'admin'].map((r) => (
                     <button
                         key={r}
                         type="button"
                         onClick={() => setRole(r)}
-                        className={`py-3 px-3 rounded-xl text-sm font-bold capitalize transition-all border ${role === r
+                        className={`py-3 px-2 rounded-xl text-xs font-bold capitalize transition-all border ${role === r
                             ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/20 scale-[1.02]'
                             : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
                             }`}
                     >
-                        {r === 'admin' ? 'I am a Founder/Admin' : 'I am an Employee'}
+                        {r === 'admin' ? 'I am an Admin' : r === 'manager' ? 'I am a Manager' : 'I am an Employee'}
                     </button>
                 ))}
             </div>
@@ -120,7 +120,7 @@ function RegisterForm() {
                     className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
                     placeholder={role === 'admin' ? "Enter your company name" : "Enter the company you work for"}
                 />
-                {role === 'employee' && (
+                {role !== 'admin' && (
                     <p className="text-xs text-slate-500 mt-1">Make sure this matches exactly what your admin set up.</p>
                 )}
             </div>

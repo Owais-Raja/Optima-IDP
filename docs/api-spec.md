@@ -59,6 +59,18 @@ Base URL: `/api` (typically)
 | `GET` | `/performance/employee/:id` | Manager/Admin get reports for employee | Yes |
 | `GET` | `/performance/all` | Admin gets all reports | Yes |
 
+### Manager Routes (New)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/manager/stats` | Get team skill trends and department stats | Yes (Manager/Admin) |
+| `GET` | `/manager/checkins` | Get upcoming check-ins for team | Yes (Manager/Admin) |
+| `POST` | `/manager/kudos` | Send kudos to a team member | Yes (Manager/Admin) |
+
+### Employee Dashboard Routes (New)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/emp-dashboard/deadlines` | Get unified list of IDP and Performance deadlines | Yes |
+
 ### Recommendation Routes (Proxy to Python Service)
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |

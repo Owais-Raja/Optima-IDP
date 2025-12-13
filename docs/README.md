@@ -20,10 +20,36 @@ Optima IDP is a comprehensive internal developer platform.
 - **[Local Setup Guide](LOCAL_SETUP.md)**: Detailed instructions on how to run this project locally (without Docker).
 - **[System Design](system-design.md)**: Architecture, data flow, and component details.
 - **[API Specification](api-spec.md)**: Details about the backend API endpoints.
-- **[Quick Start](QUICKSTART.md)**: Quick start guide (targeted at the old Docker setup, check Local Setup for current non-Docker usage).
+- **[Quick Start](QUICKSTART.md)**: Quick start guide.
 
 ## Quick Start (Summary)
 
-1.  **Backend**: `cd ../backend` -> `npm install` -> `npm run dev`
-2.  **Recommender**: `cd ../recommender` -> `.\.venv\Scripts\Activate` -> `python main.py`
-3.  **Frontend**: `cd ../frontend` -> `npm install` -> `npm run dev`
+For detailed instructions, see **[Local Setup Guide](LOCAL_SETUP.md)**.
+
+### 1. Start Backend
+In terminal 1:
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+### 2. Start Recommender
+In terminal 2:
+```bash
+cd recommender
+# Windows
+.\.venv\Scripts\Activate
+# Linux/Mac
+# source .venv/bin/activate
+pip install -r requirements.txt
+python main.py
+```
+
+### 3. Start Frontend
+In terminal 3:
+```bash
+cd frontend
+npm install
+npm run dev
+```

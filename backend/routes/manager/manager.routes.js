@@ -49,4 +49,13 @@ router.post(
     managerController.sendKudos
 );
 
+// Reports
+const reportController = require("../../controllers/report.controller");
+router.get(
+    "/reports/team-weekly",
+    authMiddleware,
+    roleMiddleware("manager", "admin"),
+    reportController.generateTeamWeeklyReport
+);
+
 module.exports = router;

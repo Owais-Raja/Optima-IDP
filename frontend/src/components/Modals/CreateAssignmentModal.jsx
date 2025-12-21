@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Calendar, User, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 
@@ -10,6 +10,9 @@ const CreateAssignmentModal = ({ isOpen, onClose, teamMembers = [] }) => {
     const [priority, setPriority] = useState('normal');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Ref for the hidden date input to programmatically trigger the picker
+    const dateInputRef = useRef(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -129,17 +132,32 @@ const CreateAssignmentModal = ({ isOpen, onClose, teamMembers = [] }) => {
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-400 mb-1">Due Date *</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <div
+                                    className="relative cursor-pointer"
+                                    onClick={() => dateInputRef.current?.showPicker()}
+                                >
+                                    <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 z-10" />
+
+                                    {/* Visible Input (Formatted) */}
                                     <input
+                                        type="text"
+                                        readOnly
+                                        placeholder="dd / mm / yyyy"
+                                        value={dueDate ? new Date(dueDate).toLocaleDateString('en-GB') : ''}
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors pointer-events-none"
+                                    />
+
+                                    {/* Hidden Date Input (Actual Logic) */}
+                                    <input
+                                        ref={dateInputRef}
                                         type="date"
                                         value={dueDate}
                                         min={todayStr}
-                                        lang="en-GB"
                                         onChange={(e) => setDueDate(e.target.value)}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors appearance-none"
-                                        style={{ colorScheme: "dark" }}
+                                        className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
                                     />
+                                    {/* Note: pointer-events-none on hidden input prevents it from blocking clicks, 
+                                        but we trigger showPicker() from the parent div click */}
                                 </div>
                             </div>
                             <div>

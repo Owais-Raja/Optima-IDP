@@ -283,22 +283,30 @@ const ManagerDashboard = ({ user }) => {
                                 View Team Analytics
                             </button>
                             <button
-                                onClick={() => {
-                                    if (!metrics?.teamMembers?.length) return showAlert("Info", "No team data to export.");
+                                onClick={async () => {
+                                    try {
+                                        // Trigger download by opening the API endpoint directly
+                                        // Use window.open with the token if needed, but since we use standard Auth header,
+                                        // we might need a helper or a fetch-blob approach if cookies aren't used.
+                                        // Assuming Bearer token is in localStorage or handled by axios interceptor.
+                                        // If using Axios for download:
+                                        const response = await api.get('/manager/reports/team-weekly', {
+                                            responseType: 'blob',
+                                        });
 
-                                    const headers = "Name,Email,Weekly Assigned IDPs,Weekly Completed Goals\n";
-                                    const rows = metrics.teamMembers.map(m =>
-                                        `"${m.name}","${m.email}",${m.weeklyCreatedIDPs || 0},${m.weeklyCompletedGoals || 0}`
-                                    ).join("\n");
-
-                                    const blob = new Blob([headers + rows], { type: 'text/csv' });
-                                    const url = window.URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    a.download = `Weekly_Report_${new Date().toISOString().split('T')[0]}.csv`;
-                                    a.click();
-                                    window.URL.revokeObjectURL(url);
-                                    showAlert("Success", "Weekly Report downloaded successfully.");
+                                        // Create download link
+                                        const url = window.URL.createObjectURL(new Blob([response.data]));
+                                        const link = document.createElement('a');
+                                        link.href = url;
+                                        link.setAttribute('download', `Weekly_Report_${new Date().toISOString().split('T')[0]}.csv`);
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        link.remove();
+                                        showAlert("Success", "Weekly Report downloaded successfully.");
+                                    } catch (error) {
+                                        console.error("Download failed", error);
+                                        showAlert("Error", "Failed to download report.");
+                                    }
                                 }}
                                 className="w-full text-left p-3 bg-slate-800/50 hover:bg-purple-600/30 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors text-sm"
                             >

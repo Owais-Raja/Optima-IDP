@@ -25,6 +25,7 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
     // Form State
     const [targetSkillId, setTargetSkillId] = useState('');
     const [targetSkillName, setTargetSkillName] = useState('');
+    const [targetLevel, setTargetLevel] = useState(5); // Default to 5
     const [goals, setGoals] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [selectedResources, setSelectedResources] = useState([]);
@@ -83,7 +84,7 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
         try {
             // Prepare payload for backend
             const payload = {
-                targetSkills: [{ skillId: targetSkillId, targetLevel: 5 }] // Default target level
+                targetSkills: [{ skillId: targetSkillId, targetLevel: targetLevel }] // Dynamic target level
             };
 
             const res = await api.post('/recommender/suggestions', payload);
@@ -113,7 +114,7 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
         try {
             const payload = {
                 goals,
-                skillsToImprove: [{ skill: targetSkillId, targetLevel: 5 }],
+                skillsToImprove: [{ skill: targetSkillId, targetLevel: targetLevel }],
                 recommendedResources: selectedResources
             };
 
@@ -174,6 +175,21 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
                                 </select>
                             </div>
 
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Target Proficiency Level (1-10)</label>
+                                    <select
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                                        value={targetLevel}
+                                        onChange={(e) => setTargetLevel(parseInt(e.target.value))}
+                                    >
+                                        {[...Array(10)].map((_, i) => (
+                                            <option key={i + 1} value={i + 1}>Level {i + 1} {i + 1 === 5 ? '(Intermediate)' : i + 1 === 10 ? '(Expert)' : ''}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-2">Goal Statement</label>
                                 <textarea
@@ -208,9 +224,25 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
                                                 <span className="text-xs font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">Match: {(rec.score * 100).toFixed(0)}%</span>
                                             </div>
                                             <p className="text-sm text-slate-400 mb-2 line-clamp-2">{rec.provider} • {rec.type} • {rec.difficulty}</p>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 items-center flex-wrap">
                                                 {/* Reasons tags */}
                                                 <span className="text-[10px] text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">Skill Gap: {rec.scoreBreakdown.skill_gap.toFixed(2)}</span>
+
+                                                {/* "Too Basic" Warning: If user wants level X but resource is too basic */}
+                                                {/* Assuming we can infer level from difficulty or it's passed. Here we use a heuristic based on gap or explicit level if available */}
+                                                {/* If skill_gap is very low or negative (not possible here usually), or if we had user current level. */}
+                                                {/* Let's presume backend sends `isBasic` or similar, or we calculate based on difficulty vs target. */}
+                                                {/* For now, let's look at difficulty vs targetLevel (1-3: Beginner, 4-7: Intermediate, 8-10: Advanced) */}
+                                                {(
+                                                    (targetLevel >= 8 && rec.difficulty === 'beginner') ||
+                                                    (targetLevel >= 8 && rec.difficulty === 'intermediate') ||
+                                                    (targetLevel >= 5 && rec.difficulty === 'beginner')
+                                                ) && (
+                                                        <span className="text-[10px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 flex items-center gap-1">
+                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                            Too Basic?
+                                                        </span>
+                                                    )}
                                             </div>
                                         </div>
                                     </label>

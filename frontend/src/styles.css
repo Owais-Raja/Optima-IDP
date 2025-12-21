@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply bg-slate-900 text-white antialiased;
+    @apply bg-slate-900 text-white antialiased overflow-x-hidden;
   }
 }
 

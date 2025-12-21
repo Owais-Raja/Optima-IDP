@@ -179,7 +179,10 @@ exports.createIDP = async (req, res) => {
       employee: employeeId,
       goals,
       // Deduplicate skills and resources
-      skillsToImprove: [...new Set(skillsToImprove)].map(s => typeof s === 'string' ? { skill: s } : s),
+      skillsToImprove: [...new Set(skillsToImprove)].map(s => {
+        if (typeof s === 'string') return { skill: s, targetLevel: 5 };
+        return { skill: s.skill, targetLevel: s.targetLevel || 5 };
+      }),
       recommendedResources: [...new Set(recommendedResources)].map(rId => ({ resource: rId, status: 'pending' })),
       status: initialStatus
     });
@@ -535,11 +538,43 @@ exports.approveIDP = async (req, res) => {
         if (user) {
           let userSkillsChanged = false;
 
+          // 1. Check completed resources for intrinsic target levels
+          // If a user completes a "Advanced" resource (Level 8), they should be at least Level 8.
+          // This overrides the IDP target level if the resource is higher.
+          const completedResources = idp.recommendedResources
+            .filter(r => r.status === 'completed' && r.resource)
+            .map(r => r.resource);
+
+          for (const resource of completedResources) {
+            // Populate resource if it wasn't already (usually is via findById logic)
+            // But here we rely on what we have. If targetLevel exists:
+            if (resource.targetLevel && resource.skill) {
+              const existingSkillIndex = user.skills.findIndex(s => s.skillId.toString() === resource.skill.toString());
+
+              if (existingSkillIndex > -1) {
+                if (user.skills[existingSkillIndex].level < resource.targetLevel) {
+                  console.log(`[Auto-Level] Resource "${resource.title}" holds Target Level ${resource.targetLevel}. Upgrading user from ${user.skills[existingSkillIndex].level}.`);
+                  user.skills[existingSkillIndex].level = resource.targetLevel;
+                  userSkillsChanged = true;
+                }
+              } else {
+                console.log(`[Auto-Level] Resource "${resource.title}" introduces new skill at Level ${resource.targetLevel}.`);
+                user.skills.push({
+                  skillId: resource.skill,
+                  level: resource.targetLevel
+                });
+                userSkillsChanged = true;
+              }
+            }
+          }
+
+          // 2. Check general IDP Target Levels (Manual goals)
           idp.skillsToImprove.forEach(idpSkill => {
             const existingSkillIndex = user.skills.findIndex(s => s.skillId.toString() === idpSkill.skill.toString());
 
             if (existingSkillIndex > -1) {
               // Update level if target is higher
+              // We only update if the PLAN target is higher than current
               if (user.skills[existingSkillIndex].level < idpSkill.targetLevel) {
                 user.skills[existingSkillIndex].level = idpSkill.targetLevel;
                 userSkillsChanged = true;

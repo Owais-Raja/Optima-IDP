@@ -62,6 +62,14 @@ const ResourceSchema = new mongoose.Schema(
       default: "beginner"
     },
 
+    // Target Level this resource helps achieve (1-10)
+    targetLevel: {
+      type: Number,
+      min: 1,
+      max: 10,
+      default: 1
+    },
+
     // Optional description of the resource
     description: {
       type: String,

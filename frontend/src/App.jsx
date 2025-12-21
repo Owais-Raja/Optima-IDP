@@ -27,20 +27,32 @@ import ScrollToAnchor from './components/ScrollToAnchor.jsx';
 // - Manages authentication state display (Login/Register vs User Menu).
 // =================================================================================================
 
+import { AnimatePresence, motion } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
+
 function AppShell() {
   const { user } = useAuth(); // Get user state
+  const location = useLocation(); // Track current route for animations
+
+  // Page Transition Variants
+  const pageVariants = {
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -10 },
+  };
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col font-sans">
       {/* ======================= Scroll Anchor Component ======================= */}
       <ScrollToAnchor />
 
       {/* ================================================================================================= */}
       {/* Navigation Bar */}
       {/* Sticky top navbar containing logo and user navigation links */}
-      <nav className="sticky top-0 z-50 bg-slate-800/90 backdrop-blur-lg border-b border-slate-700 shadow-lg">
+      <nav className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent hover:scale-105 transition-transform">
+            <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent hover:opacity-90 transition-opacity">
               Optima IDP
             </Link>
 
@@ -53,7 +65,7 @@ function AppShell() {
                     className={({ isActive }) =>
                       `text-sm font-medium transition-colors ${isActive
                         ? 'text-purple-400'
-                        : 'text-slate-300 hover:text-white'
+                        : 'text-slate-400 hover:text-white'
                       }`
                     }
                   >
@@ -66,7 +78,7 @@ function AppShell() {
                       className={({ isActive }) =>
                         `text-sm font-medium transition-colors ${isActive
                           ? 'text-purple-400'
-                          : 'text-slate-300 hover:text-white'
+                          : 'text-slate-400 hover:text-white'
                         }`
                       }
                     >
@@ -80,7 +92,7 @@ function AppShell() {
                       className={({ isActive }) =>
                         `text-sm font-medium transition-colors ${isActive
                           ? 'text-purple-400'
-                          : 'text-slate-300 hover:text-white'
+                          : 'text-slate-400 hover:text-white'
                         }`
                       }
                     >
@@ -93,7 +105,7 @@ function AppShell() {
                     className={({ isActive }) =>
                       `text-sm font-medium transition-colors ${isActive
                         ? 'text-purple-400'
-                        : 'text-slate-300 hover:text-white'
+                        : 'text-slate-400 hover:text-white'
                       }`
                     }
                   >
@@ -102,10 +114,10 @@ function AppShell() {
                 </>
               ) : (
                 <div className="flex gap-4 items-center">
-                  <Link to="/login" className="px-4 py-2 rounded-lg border border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white transition-all text-sm font-medium">
+                  <Link to="/login" className="px-5 py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white transition-all text-sm font-medium">
                     Login
                   </Link>
-                  <Link to="/register" className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/20 transition-all hover:scale-105 active:scale-95 text-sm font-medium">
+                  <Link to="/register" className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/20 transition-all hover:scale-105 active:scale-95 text-sm font-medium">
                     Register
                   </Link>
                 </div>
@@ -115,8 +127,24 @@ function AppShell() {
         </div>
       </nav>
       {/* Navigation Bar ends here */}
-      <main className="flex-1">
-        <Outlet />
+
+      {/* ================================================================================================= */}
+      {/* Main Content Area */}
+      {/* Wrapped in AnimatePresence to enable smooth route transitions */}
+      <main className="flex-1 relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            variants={pageVariants}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="w-full h-full"
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );

@@ -62,7 +62,7 @@ exports.addResource = async (req, res) => {
       return res.status(403).json({ message: "Access denied: Admin or Manager only" });
     }
 
-    const { title, type, skill, provider, difficulty, description, duration } = req.body;
+    const { title, type, skill, provider, difficulty, description, duration, targetLevel } = req.body;
 
     console.log("Add Resource Headers:", req.headers['content-type']);
     // console.log("Add Resource Body:", req.body); // can be verbose with binary
@@ -94,6 +94,7 @@ exports.addResource = async (req, res) => {
       difficulty,
       description,
       duration,
+      targetLevel: targetLevel || 1, // Default to 1 if not provided
       createdBy,
       visibility
     });

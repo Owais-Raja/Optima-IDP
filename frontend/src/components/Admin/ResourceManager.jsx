@@ -36,9 +36,9 @@ const ResourceManager = () => {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
-        url: '',
         type: 'course',
-        skill: ''
+        skill: '',
+        targetLevel: 1 // Default target level
     });
     const [uploadMode, setUploadMode] = useState('url'); // 'url' or 'file'
     const [selectedFile, setSelectedFile] = useState(null);
@@ -142,6 +142,7 @@ const ResourceManager = () => {
             data.append('description', formData.description);
             data.append('type', formData.type);
             data.append('skill', formData.skill);
+            data.append('targetLevel', formData.targetLevel);
 
             if (uploadMode === 'url') {
                 data.append('url', formData.url);
@@ -184,7 +185,8 @@ const ResourceManager = () => {
             description: resource.description || '',
             url: resource.url || resource.link, // Handle both url (backend) and link (frontend legacy) if any
             type: resource.type || 'course',
-            skill: typeof resource.skill === 'object' ? resource.skill._id : resource.skill
+            skill: typeof resource.skill === 'object' ? resource.skill._id : resource.skill,
+            targetLevel: resource.targetLevel || 1
         });
         setShowAddForm(true);
     };
@@ -212,7 +214,7 @@ const ResourceManager = () => {
     };
 
     const resetForm = () => {
-        setFormData({ title: '', description: '', url: '', type: 'course', skill: '' });
+        setFormData({ title: '', description: '', url: '', type: 'course', skill: '', targetLevel: 1 });
         setUploadMode('url');
         setSelectedFile(null);
     };
@@ -334,6 +336,22 @@ const ResourceManager = () => {
                                     ))}
                                 </select>
                             )}
+                        </div>
+
+                        <div>
+                            <label className="text-slate-300 text-sm font-medium block mb-2">Target Proficiency Level (1-10)</label>
+                            <select
+                                value={formData.targetLevel}
+                                onChange={(e) => setFormData({ ...formData, targetLevel: parseInt(e.target.value) })}
+                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-cyan-500 cursor-pointer"
+                            >
+                                {[...Array(10)].map((_, i) => (
+                                    <option key={i + 1} value={i + 1}>
+                                        Level {i + 1} {i + 1 === 1 ? '(Beginner)' : i + 1 === 5 ? '(Intermediate)' : i + 1 === 10 ? '(Expert)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-xs text-slate-500 mt-1">Completion of this resource will boost the learner to this level.</p>
                         </div>
 
                         <div>
@@ -501,6 +519,11 @@ const ResourceManager = () => {
                                         </a>
                                     )}
                                 </div>
+                                {resource.targetLevel && (
+                                    <div className="absolute top-0 left-0 bg-slate-900/90 text-slate-300 text-[10px] px-2 py-1 rounded-br-lg border-r border-b border-slate-700">
+                                        Level {resource.targetLevel}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

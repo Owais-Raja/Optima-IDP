@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { registerTokenListener } from '../services/api';
+import api, { registerTokenListener } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -9,7 +9,19 @@ const storageKeys = {
   user: 'userProfile'
 };
 
+// =================================================================================================
+// Auth Provider Component
+// -------------------------------------------------------------------------------------------------
+// Managed global authentication state.
+// - Initializes state from localStorage.
+// - Syncs state changes back to localStorage.
+// - Listens to API interceptor events for auto-logout or token refresh.
+// =================================================================================================
+
 export function AuthProvider({ children }) {
+  // =================================================================================================
+  // State Initialization
+  // -------------------------------------------------------------------------------------------------
   const [accessToken, setAccessToken] = useState(
     () => localStorage.getItem(storageKeys.access) || null
   );
@@ -20,6 +32,11 @@ export function AuthProvider({ children }) {
     const cached = localStorage.getItem(storageKeys.user);
     return cached ? JSON.parse(cached) : null;
   });
+  // State Initialization ends here
+
+  // =================================================================================================
+  // Persistence & Synchronization Effects
+  // -------------------------------------------------------------------------------------------------
 
   // Persist to storage
   useEffect(() => {
@@ -51,7 +68,11 @@ export function AuthProvider({ children }) {
 
     return unsubscribe;
   }, []);
+  // Persistence & Synchronization Effects ends here
 
+  // =================================================================================================
+  // Auth Actions
+  // -------------------------------------------------------------------------------------------------
   const login = (payload) => {
     setAccessToken(payload?.accessToken || null);
     setRefreshToken(payload?.refreshToken || null);
@@ -64,9 +85,28 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await api.get('/user/me');
+      if (res.data.user) {
+        setUser(res.data.user);
+      }
+    } catch (error) {
+      console.error("Failed to refresh user profile", error);
+    }
+  };
+  // Auth Actions ends here
+
+  // Auto-refresh user profile on mount if token exists
+  useEffect(() => {
+    if (accessToken) {
+      refreshUser();
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ accessToken, refreshToken, user, login, logout }}
+      value={{ accessToken, refreshToken, user, login, logout, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

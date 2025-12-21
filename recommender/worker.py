@@ -12,7 +12,9 @@ from core.skill_similarity import SkillSimilarityCalculator
 from core.resource_ranker import ResourceRanker
 
 # Load env vars
-load_dotenv()
+# Load env vars
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(dotenv_path)
 
 # Configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")

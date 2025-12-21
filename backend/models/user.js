@@ -65,7 +65,9 @@ const UserSchema = new mongoose.Schema(
       darkMode: { type: Boolean, default: true },
       twoFactorEnabled: { type: Boolean, default: false },
       weeklyReports: { type: Boolean, default: true },
-      systemBranding: { type: Boolean, default: true }
+      systemBranding: { type: Boolean, default: true },
+      notifyOnNewIdp: { type: Boolean, default: true },
+      notifyOnReviewDeadlines: { type: Boolean, default: true }
     },
 
     /**
@@ -185,10 +187,29 @@ const UserSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null
+    },
+
+    // Pending Manager Request
+    pendingManager: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
     }
   },
 
   { timestamps: true }
 );
+
+// Pre-save hook to enforce Title Case on name
+UserSchema.pre('save', function (next) {
+  if (this.isModified('name')) {
+    this.name = this.name
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+  next();
+});
 
 module.exports = mongoose.model("User", UserSchema);

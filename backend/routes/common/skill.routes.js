@@ -3,7 +3,7 @@ const roleMiddleware = require("../../middleware/roleMiddleware");
 const express = require("express");
 const router = express.Router();
 
-const skillController = require("../../controllers/common/skill.controller");
+const skillController = require("../../controllers/skill.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
 
 /**

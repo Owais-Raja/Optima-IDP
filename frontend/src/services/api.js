@@ -2,6 +2,11 @@ import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api';
 
+// =================================================================================================
+// Token Listener Helper
+// -------------------------------------------------------------------------------------------------
+// Allows the Auth Context to subscribe to token updates triggered by the interceptors.
+// This ensures that login/logout state remains synced across the app even if triggered by API events.
 // Optional callback so the auth store can stay in sync when tokens change here
 let tokenListener = null;
 export const registerTokenListener = (listener) => {
@@ -13,15 +18,19 @@ export const registerTokenListener = (listener) => {
     }
   };
 };
+// Token Listener Helper ends here
 
+// =================================================================================================
+// Axios Instance Creation
+// -------------------------------------------------------------------------------------------------
 const api = axios.create({
-  baseURL: API_BASE,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  baseURL: API_BASE
 });
 
-// Attach access token if present
+// =================================================================================================
+// Request Interceptor
+// -------------------------------------------------------------------------------------------------
+// Attaches the 'accessToken' from localStorage to every outgoing request.
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
   if (token) {
@@ -29,7 +38,12 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+// Request Interceptor ends here
 
+// =================================================================================================
+// Refresh Token Logic
+// -------------------------------------------------------------------------------------------------
+// Helper function to call the backend refresh endpoint when a 401 occurs.
 let isRefreshing = false;
 let refreshPromise = null;
 
@@ -60,8 +74,15 @@ async function refreshAccessToken() {
   }
   return { accessToken: newAccess, refreshToken: newRefresh };
 }
+// Refresh Token Logic ends here
 
-// Response interceptor with single-flight refresh
+// =================================================================================================
+// Response Interceptor
+// -------------------------------------------------------------------------------------------------
+// Handles global error responses, specifically 401 Unauthorized.
+// - If 401 received, attempts to refresh token silently.
+// - If refresh fails, logs the user out.
+// - Queues requests while refreshing to prevent race conditions.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -107,6 +128,7 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+// Response Interceptor ends here
 
 export default api;
 

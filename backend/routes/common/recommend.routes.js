@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const recommendController = require("../../controllers/common/recommend.controller");
-const recommenderController = require("../../controllers/common/recommender.controller");
+const recommendController = require("../../controllers/recommend.controller");
+const recommenderController = require("../../controllers/recommender.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
 
 /**

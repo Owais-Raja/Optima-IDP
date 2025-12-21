@@ -3,7 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../store/useAuth';
 
+// =================================================================================================
+// Register Form Component
+// -------------------------------------------------------------------------------------------------
+// Handles new user registration.
+// Features:
+// - Role selection (Employee, Manager, Admin).
+// - Dynamic fields based on role (Company Name, Secret Key).
+// - Auto-login upon successful registration (unless approval required).
+// =================================================================================================
+
 function RegisterForm() {
+    // =================================================================================================
+    // State Definitions
+    // -------------------------------------------------------------------------------------------------
     const [name, setName] = useState('');
     const [company, setCompany] = useState('');
     const [email, setEmail] = useState('');
@@ -18,6 +31,7 @@ function RegisterForm() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { login } = useAuth();
+    // State Definitions ends here
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -230,7 +244,7 @@ function RegisterForm() {
                         Creating {role === 'admin' ? 'Organization' : 'Account'}...
                     </span>
                 ) : (
-                    role === 'admin' ? 'Register New Company' : 'Create Employee Account'
+                    role === 'admin' ? 'Register New Company' : `Create ${role.charAt(0).toUpperCase() + role.slice(1)} Account`
                 )}
             </button>
         </form>

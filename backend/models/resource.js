@@ -31,7 +31,7 @@ const ResourceSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["course", "video", "article", "certification", "document", "other"],
+      enum: ["course", "video", "article", "certification", "document", "book", "other"],
       default: "course"
     },
 
@@ -72,6 +72,20 @@ const ResourceSchema = new mongoose.Schema(
     duration: {
       type: String,
       default: ""
+    },
+
+    // Who created the resource
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+
+    // Visibility: public (everyone), team (manager's team only)
+    visibility: {
+      type: String,
+      enum: ["public", "team"],
+      default: "public"
     }
   },
 

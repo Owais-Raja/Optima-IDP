@@ -3,7 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../store/useAuth';
 
+// =================================================================================================
+// Login Form Component
+// -------------------------------------------------------------------------------------------------
+// Standard login form with email and password fields.
+// Handles authentication via API and redirects on success.
+// =================================================================================================
+
 function LoginForm() {
+    // =================================================================================================
+    // State Definitions
+    // -------------------------------------------------------------------------------------------------
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -11,6 +21,7 @@ function LoginForm() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { login } = useAuth();
+    // State Definitions ends here
 
     const handleSubmit = async (e) => {
         e.preventDefault();

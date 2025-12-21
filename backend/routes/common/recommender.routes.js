@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const controller = require("../../controllers/common/recommender.controller");
+const controller = require("../../controllers/recommender.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
 
 // POST /api/recommender/suggestions

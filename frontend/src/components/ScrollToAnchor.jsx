@@ -1,6 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
+// =================================================================================================
+// Scroll To Anchor Component
+// -------------------------------------------------------------------------------------------------
+// Utility to handle hash links (anchor scrolling) in React Router.
+// Scrolls to the element with ID matching the URL hash.
+// =================================================================================================
+
 const ScrollToAnchor = () => {
     const location = useLocation();
     const lastHash = useRef('');

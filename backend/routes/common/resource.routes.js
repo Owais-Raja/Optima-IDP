@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
 
-const resourceController = require("../../controllers/common/resource.controller");
+const resourceController = require("../../controllers/resource.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
+const upload = require("../../middleware/upload");
 
 /**
  * RESOURCE ROUTES
@@ -16,7 +17,7 @@ const authMiddleware = require("../../middleware/authMiddleware");
  */
 
 // Add a single resource (admin only)
-router.post("/add", authMiddleware, resourceController.addResource);
+router.post("/add", authMiddleware, upload.single("file"), resourceController.addResource);
 
 // Bulk add resources (admin only)
 router.post("/bulk-add", authMiddleware, resourceController.bulkAddResources);
@@ -28,7 +29,7 @@ router.get("/all", authMiddleware, resourceController.getAllResources);
 router.get("/skill/:skillId", authMiddleware, resourceController.getResourcesBySkill);
 
 // Update a resource (admin only)
-router.put("/update/:id", authMiddleware, resourceController.updateResource);
+router.put("/update/:id", authMiddleware, upload.single("file"), resourceController.updateResource);
 
 // Delete a resource (admin only)
 router.delete("/delete/:id", authMiddleware, resourceController.deleteResource);

@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const adminController = require("../../controllers/admin/admin.controller");
+const adminController = require("../../controllers/admin.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
 const roleMiddleware = require("../../middleware/roleMiddleware");
 const multer = require("multer");
@@ -54,7 +54,7 @@ router.put("/preferences", adminController.updateCompanyPreferences);
 // ===========================================================================
 // DASHBOARD & ANALYTICS
 // ===========================================================================
-const adminDashboardController = require("../../controllers/admin/adminDashboard.controller");
+const adminDashboardController = require("../../controllers/adminDashboard.controller");
 
 // Organization KPIs
 router.get("/dashboard/kpis", adminDashboardController.getOrgKPIs);
@@ -82,7 +82,7 @@ router.get("/export/users", adminDashboardController.exportUsersCSV);
 // ===========================================================================
 // ANNOUNCEMENTS
 // ===========================================================================
-const announcementController = require("../../controllers/common/announcement.controller");
+const announcementController = require("../../controllers/announcement.controller");
 
 router.post("/announcements", upload.single("attachment"), announcementController.createAnnouncement);
 router.get("/announcements", announcementController.getAnnouncements);
@@ -92,7 +92,7 @@ router.delete("/announcements/:id", announcementController.deleteAnnouncement);
 // ===========================================================================
 // ORGANIZATION SETTINGS
 // ===========================================================================
-const orgSettingsController = require("../../controllers/manager/orgSettings.controller");
+const orgSettingsController = require("../../controllers/orgSettings.controller");
 
 router.get("/org-settings", orgSettingsController.getOrgSettings);
 router.put("/org-settings", orgSettingsController.updateOrgSettings);

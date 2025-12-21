@@ -6,7 +6,14 @@ import {
     LogOut, User
 } from 'lucide-react';
 
-const QuickActions = ({ role }) => {
+// =================================================================================================
+// Quick Actions Component
+// -------------------------------------------------------------------------------------------------
+// Provides quick access buttons and a command palette (Ctrl/Cmd+K) for common actions.
+// Adapts actions based on user role (Admin, Manager, Employee).
+// =================================================================================================
+
+const QuickActions = ({ role, onCreateIDP }) => {
     const navigate = useNavigate();
     const searchRef = useRef(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -26,9 +33,9 @@ const QuickActions = ({ role }) => {
             { label: "Add Review", icon: PlusCircle, to: "/dashboard#reviews", color: "text-purple-400" }
         ],
         employee: [
-            { label: "Create IDP", icon: PlusCircle, to: "/idp/create", color: "text-emerald-400" },
+            { label: "Create IDP", icon: PlusCircle, onClick: onCreateIDP, color: "text-emerald-400" },
             { label: "Recommendations", icon: BookOpen, to: "/dashboard#recommendations", color: "text-blue-400" },
-            { label: "Update Skills", icon: Activity, to: "/profile#skills", color: "text-purple-400" }
+            { label: "Update Skills", icon: Activity, to: "/profile?tab=skills", color: "text-purple-400" }
         ]
     };
 
@@ -76,7 +83,9 @@ const QuickActions = ({ role }) => {
     }, [isSearchOpen, filteredCommands, selectedIndex]);
 
     const handleCommandSelect = (cmd) => {
-        if (cmd.to.startsWith('#')) {
+        if (cmd.onClick) {
+            cmd.onClick();
+        } else if (cmd.to.startsWith('#')) {
             const element = document.getElementById(cmd.to.substring(1));
             element?.scrollIntoView({ behavior: 'smooth' });
         } else if (cmd.to.includes('#')) {
@@ -86,6 +95,11 @@ const QuickActions = ({ role }) => {
                 element?.scrollIntoView({ behavior: 'smooth' });
             } else {
                 navigate(cmd.to);
+                // Allow navigation to complete before scrolling
+                setTimeout(() => {
+                    const element = document.getElementById(hash);
+                    element?.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
             }
         } else {
             navigate(cmd.to);
@@ -105,14 +119,25 @@ const QuickActions = ({ role }) => {
                     <div className="h-6 w-px bg-slate-700 shrink-0"></div>
                     <div className="flex gap-2">
                         {currentRoleActions.map((action, idx) => (
-                            <Link
-                                key={idx}
-                                to={action.to}
-                                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg transition-all text-sm font-medium text-slate-200 hover:text-white whitespace-nowrap"
-                            >
-                                <action.icon className={`w-4 h-4 ${action.color}`} />
-                                {action.label}
-                            </Link>
+                            action.onClick ? (
+                                <button
+                                    key={idx}
+                                    onClick={action.onClick}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg transition-all text-sm font-medium text-slate-200 hover:text-white whitespace-nowrap"
+                                >
+                                    <action.icon className={`w-4 h-4 ${action.color}`} />
+                                    {action.label}
+                                </button>
+                            ) : (
+                                <Link
+                                    key={idx}
+                                    to={action.to}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg transition-all text-sm font-medium text-slate-200 hover:text-white whitespace-nowrap"
+                                >
+                                    <action.icon className={`w-4 h-4 ${action.color}`} />
+                                    {action.label}
+                                </Link>
+                            )
                         ))}
                     </div>
                 </div>

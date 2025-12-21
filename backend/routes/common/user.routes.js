@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const userController = require("../../controllers/common/user.controller");
+const userController = require("../../controllers/user.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
 
 /**
@@ -24,6 +24,11 @@ router.get("/my-team", authMiddleware, userController.getMyTeam);
 // Get my team (Manager only)
 router.get("/my-team", authMiddleware, userController.getMyTeam);
 
+// Get pending team requests (Manager only)
+router.get("/team-requests", authMiddleware, userController.getPendingTeamRequests);
+router.put("/team-requests/:userId/approve", authMiddleware, userController.approveTeamMember);
+router.put("/team-requests/:userId/reject", authMiddleware, userController.rejectTeamMember);
+
 // Get all users (admin only)
 router.get("/all", authMiddleware, userController.getAllUsers);
 
@@ -39,7 +44,7 @@ router.get("/:id", authMiddleware, userController.getUserById);
 // Allow 'avatar' field in multipart/form-data
 router.put("/me", authMiddleware, upload.single('avatar'), userController.updateProfile);
 
-const authController = require("../../controllers/common/auth.controller");
+const authController = require("../../controllers/auth.controller");
 
 // Request profile update (User)
 router.post("/request-update", authMiddleware, userController.requestProfileUpdate);

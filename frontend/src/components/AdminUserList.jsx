@@ -1,11 +1,49 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import ConfirmationModal from './Modals/ConfirmationModal';
+
+// =================================================================================================
+// Admin User List Component
+// -------------------------------------------------------------------------------------------------
+// Displays a list of all users with administrative actions.
+// Capabilities:
+// - View all users and their details.
+// - Change user roles (Employee <-> Manager).
+// - Resolve profile update requests (e.g., name changes).
+// =================================================================================================
 
 function AdminUserList() {
+    // =================================================================================================
+    // State Definitions
+    // -------------------------------------------------------------------------------------------------
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState(null);
+    const [modalConfig, setModalConfig] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        showCancel: false,
+        confirmText: 'OK',
+        onConfirm: null
+    });
 
+    const closeModal = () => setModalConfig(prev => ({ ...prev, isOpen: false }));
+    const showAlert = (message, title = "Alert") => {
+        setModalConfig({
+            isOpen: true,
+            title,
+            message,
+            showCancel: false,
+            confirmText: 'OK',
+            onConfirm: closeModal
+        });
+    };
+    // State Definitions ends here
+
+    // =================================================================================================
+    // Helper Functions
+    // -------------------------------------------------------------------------------------------------
     const fetchUsers = async () => {
         try {
             const res = await api.get('/user');
@@ -29,7 +67,7 @@ function AdminUserList() {
             setMessage(`Role updated to ${newRole}`);
             setTimeout(() => setMessage(null), 3000);
         } catch (err) {
-            alert('Failed to update role');
+            showAlert('Failed to update role', 'Error');
         }
     };
 
@@ -54,9 +92,10 @@ function AdminUserList() {
             setMessage(`Request ${status}`);
             setTimeout(() => setMessage(null), 3000);
         } catch (err) {
-            alert('Failed to resolve request');
+            showAlert('Failed to resolve request', 'Error');
         }
     };
+    // Helper Functions ends here
 
     if (loading) return <div className="text-slate-400">Loading users...</div>;
 
@@ -152,7 +191,17 @@ function AdminUserList() {
                     </tbody>
                 </table>
             </div>
-        </div>
+
+            <ConfirmationModal
+                isOpen={modalConfig.isOpen}
+                onClose={closeModal}
+                onConfirm={modalConfig.onConfirm || closeModal}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                showCancel={modalConfig.showCancel}
+                confirmText={modalConfig.confirmText}
+            />
+        </div >
     );
 }
 

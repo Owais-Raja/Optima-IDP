@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const idpController = require("../../controllers/emp/idp.controller");
+const idpController = require("../../controllers/idp.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
 const roleMiddleware = require("../../middleware/roleMiddleware");
 
@@ -40,12 +40,21 @@ router.get(
   idpController.getIDPsByEmployee
 );
 
+
 // Employee updates their own IDP
 router.put(
   "/update/:id",
   authMiddleware,
   roleMiddleware("employee", "manager", "admin"),
   idpController.updateIDP
+);
+
+// Delete IDP
+router.delete(
+  "/:id",
+  authMiddleware,
+  roleMiddleware("employee", "manager", "admin"),
+  idpController.deleteIDP
 );
 
 // Toggle Resource Status
@@ -102,6 +111,14 @@ router.get(
   authMiddleware,
   roleMiddleware("admin"),
   idpController.getSystemStats
+);
+
+// Get Single IDP (Must be LAST to avoid shadowing other routes)
+router.get(
+  "/:id",
+  authMiddleware,
+  roleMiddleware("employee", "manager", "admin"),
+  idpController.getIDPById
 );
 
 module.exports = router;

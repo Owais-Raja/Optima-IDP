@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const performanceController = require("../../controllers/emp/performance.controller");
+const performanceController = require("../../controllers/performance.controller");
 const authMiddleware = require("../../middleware/authMiddleware");
 const roleMiddleware = require("../../middleware/roleMiddleware");
 
@@ -19,7 +19,7 @@ router.post(
   "/add",
   authMiddleware,
   roleMiddleware("manager", "admin"),
-  performanceController.addReport
+  performanceController.createReview
 );
 
 // Employee sees their own performance reports
@@ -35,7 +35,7 @@ router.get(
   "/employee/:id",
   authMiddleware,
   roleMiddleware("manager", "admin"),
-  performanceController.getReportsByEmployee
+  performanceController.getEmployeeReviews
 );
 
 // Admin sees all performance reports
@@ -44,6 +44,30 @@ router.get(
   authMiddleware,
   roleMiddleware("admin"),
   performanceController.getAllReports
+);
+
+// Manager sees reviews they created
+router.get(
+  "/created-by-me",
+  authMiddleware,
+  roleMiddleware("manager"),
+  performanceController.getReviews
+);
+
+// Update review
+router.put(
+  "/:id",
+  authMiddleware,
+  roleMiddleware("manager", "admin"),
+  performanceController.updateReview
+);
+
+// Delete review
+router.delete(
+  "/:id",
+  authMiddleware,
+  roleMiddleware("manager", "admin"),
+  performanceController.deleteReview
 );
 
 module.exports = router;

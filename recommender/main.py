@@ -19,7 +19,9 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if it exists
-load_dotenv()
+# Point to root .env file (parent of recommender directory)
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(dotenv_path)
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -109,7 +111,7 @@ if __name__ == "__main__":
     import uvicorn
     
     # Get port from environment variable or use default
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("RECOMMENDER_PORT", 8000))
     host = os.getenv("HOST", "0.0.0.0")
     
     # Start the server

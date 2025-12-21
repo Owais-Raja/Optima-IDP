@@ -1,8 +1,9 @@
+const path = require("path");
 const dotenv = require("dotenv");
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 const connectDB = require("./config/db");
 const express = require("express");
-const cors = require("cors");
+
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
@@ -11,6 +12,18 @@ const swaggerSpecs = require("./config/swagger");
 const logger = require("./config/logger");
 
 const app = express();
+const cors = require("cors");
+
+
+// =================================================================================================
+// CORS Configuration
+// =================================================================================================
+app.use(cors({
+  origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
 /**
  * SECURITY MIDDLEWARE
@@ -23,7 +36,7 @@ app.use(helmet());
 // Rate Limiting Configuration
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs
+  max: 5000, // limit each IP to 5000 requests per windowMs
   message: "Too many requests from this IP, please try again later",
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
@@ -40,13 +53,13 @@ app.use("/api/", limiter);
  */
 app.use(morgan("combined", { stream: logger.stream }));
 
-const path = require("path"); // Add path import
+
 
 // Standard Middlewares
-app.use(cors());
-app.use(express.json());
-// Serve uploads statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
 // Swagger API Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
@@ -65,6 +78,7 @@ app.use("/api/auth", require("./routes/common/auth.routes"));
 app.use("/api/user", require("./routes/common/user.routes"));
 app.use("/api/skill", require("./routes/common/skill.routes"));
 app.use("/api/resource", require("./routes/common/resource.routes"));
+app.use("/api/files", require("./routes/common/file.routes")); // New GridFS file route
 app.use("/api/idp", require("./routes/emp/idp.routes"));
 app.use("/api/performance", require("./routes/emp/performance.routes"));
 app.use("/api/emp-dashboard", require("./routes/emp/dashboard.routes"));
@@ -73,6 +87,7 @@ app.use("/api/recommend", require("./routes/common/recommend.routes"));
 app.use("/api/admin", require("./routes/admin/admin.routes"));
 app.use("/api/manager", require("./routes/manager/manager.routes"));
 app.use("/api/announcements", require("./routes/common/announcement.routes")); // Note: Check if this was common or admin in moves. Based on file listing it is in common.
+app.use("/api/assignments", require("./routes/assignment.routes"));
 
 
 
@@ -116,6 +131,11 @@ const startServer = async () => {
     const server = app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+
+    // Increase timeout for large file uploads (1 hour)
+    server.timeout = 3600000;
+    server.keepAliveTimeout = 3600000;
+    server.headersTimeout = 3600000;
 
     // Graceful shutdown
     process.on("SIGTERM", () => {

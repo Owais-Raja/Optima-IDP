@@ -1,10 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useAuth } from '../../store/useAuth';
+import ConfirmationModal from '../Modals/ConfirmationModal';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// =================================================================================================
+// Create IDP Modal Component
+// -------------------------------------------------------------------------------------------------
+// Multi-step wizard for creating a new Individual Development Plan (IDP).
+// Steps:
+// 1. Select Target Skill & Define Goal.
+// 2. AI Recommendations (Resources & Activities).
+// 3. Finalize & Create.
+// =================================================================================================
 
 const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
+    // =================================================================================================
+    // State Definitions
+    // -------------------------------------------------------------------------------------------------
     const { user } = useAuth();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -16,7 +28,32 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
     const [goals, setGoals] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [selectedResources, setSelectedResources] = useState([]);
+    const [modalConfig, setModalConfig] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'info',
+        showCancel: false,
+        confirmText: 'OK',
+        onConfirm: null
+    });
+    // State Definitions ends here
 
+    const closeModal = () => setModalConfig(prev => ({ ...prev, isOpen: false }));
+    const showAlert = (message, title = "Alert") => {
+        setModalConfig({
+            isOpen: true,
+            title,
+            message,
+            showCancel: false,
+            confirmText: 'OK',
+            onConfirm: closeModal
+        });
+    };
+
+    // =================================================================================================
+    // Helper Functions
+    // -------------------------------------------------------------------------------------------------
     // Fetch skills on mount
     useEffect(() => {
         if (isOpen) {
@@ -31,13 +68,12 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
 
     const fetchSkills = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get(`${API_URL}/skill/all`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setSkills(res.data);
+            // Using api service which automatically handles the token
+            const res = await api.get('/skill/all');
+            setSkills(res.data.skills || []);
         } catch (err) {
             console.error("Failed to fetch skills", err);
+            setSkills([]);
         }
     };
 
@@ -45,15 +81,12 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
         if (!targetSkillId) return;
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            // Prepare payload for backend -> Python
+            // Prepare payload for backend
             const payload = {
                 targetSkills: [{ skillId: targetSkillId, targetLevel: 5 }] // Default target level
             };
 
-            const res = await axios.post(`${API_URL}/recommender/suggestions`, payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.post('/recommender/suggestions', payload);
 
             setSuggestions(res.data.recommendations);
             // Auto-select top 3
@@ -61,7 +94,7 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
             setStep(2);
         } catch (err) {
             console.error("Failed to generate suggestions", err);
-            alert("Failed to generate suggestions. Please try again.");
+            showAlert("Failed to generate suggestions. Please try again.", "Error");
         } finally {
             setLoading(false);
         }
@@ -78,26 +111,25 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
     const handleCreate = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
             const payload = {
                 goals,
                 skillsToImprove: [{ skill: targetSkillId, targetLevel: 5 }],
                 recommendedResources: selectedResources
             };
 
-            await axios.post(`${API_URL}/idp/create`, payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.post('/idp/create', payload);
 
             onCreated();
             onClose();
         } catch (err) {
-            console.error("Failed to create IDP", err);
-            alert("Failed to create IDP.");
+            console.error("Failed to create IDP. Details:", err.response?.data || err);
+            const errMsg = err.response?.data?.message || err.response?.data?.error || "Unknown error occurred";
+            alert(`Failed to create IDP: ${errMsg}`);
         } finally {
             setLoading(false);
         }
     };
+    // Helper Functions ends here
 
     if (!isOpen) return null;
 
@@ -136,7 +168,7 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
                                     }}
                                 >
                                     <option value="">Select a skill to improve...</option>
-                                    {skills.map(skill => (
+                                    {Array.from(new Map(skills.map(skill => [skill._id, skill])).values()).map(skill => (
                                         <option key={skill._id} value={skill._id}>{skill.name}</option>
                                     ))}
                                 </select>
@@ -162,7 +194,7 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
                             </div>
 
                             <div className="space-y-3">
-                                {suggestions.map((rec) => (
+                                {Array.from(new Map(suggestions.map(rec => [rec.resourceId, rec])).values()).map((rec) => (
                                     <label key={rec.resourceId} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${selectedResources.includes(rec.resourceId) ? 'bg-slate-800 border-purple-500/50' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}>
                                         <input
                                             type="checkbox"
@@ -227,7 +259,17 @@ const CreateIDPModal = ({ isOpen, onClose, onCreated }) => {
                 </div>
 
             </div>
-        </div>
+
+            <ConfirmationModal
+                isOpen={modalConfig.isOpen}
+                onClose={closeModal}
+                onConfirm={modalConfig.onConfirm || closeModal}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                showCancel={modalConfig.showCancel}
+                confirmText={modalConfig.confirmText}
+            />
+        </div >
     );
 };
 

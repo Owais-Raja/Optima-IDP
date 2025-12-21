@@ -69,8 +69,14 @@ const IDPSchema = new mongoose.Schema(
     // Status of the IDP
     status: {
       type: String,
-      enum: ["draft", "pending", "approved", "completed", "processing"],
+      enum: ["draft", "pending", "approved", "completed", "processing", "needs_revision", "rejected", "pending_completion"],
       default: "draft"
+    },
+
+    // Track previous status to revert correctly if un-completed
+    previousStatus: {
+      type: String,
+      default: null
     },
 
     // Target Date for completion (Used for Deadlines)

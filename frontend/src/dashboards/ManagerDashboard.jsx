@@ -30,6 +30,7 @@ const ManagerDashboard = ({ user }) => {
     // Dashboard Data
     const [metrics, setMetrics] = useState(null);
     const [pendingIDPs, setPendingIDPs] = useState([]);
+    const [teamRequests, setTeamRequests] = useState([]); // New state for team requests
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
@@ -79,14 +80,16 @@ const ManagerDashboard = ({ user }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [metricsRes, idpRes, teamRes, annRes] = await Promise.all([
+                const [metricsRes, idpRes, teamRes, annRes, reqRes] = await Promise.all([
                     api.get('/idp/metrics/team'),
                     api.get('/idp/pending'),
                     api.get('/user/my-team'),
-                    api.get('/announcements')
+                    api.get('/announcements'),
+                    api.get('/user/team-requests') // Fetch pending requests
                 ]);
                 setMetrics({ ...metricsRes.data, teamMembers: teamRes.data.team });
                 setPendingIDPs(idpRes.data.idps || []);
+                setTeamRequests(reqRes.data || []);
                 setAnnouncements(annRes.data || []);
             } catch (err) {
                 console.error("Manager fetch error", err);
@@ -125,6 +128,30 @@ const ManagerDashboard = ({ user }) => {
         } catch (err) {
             console.error(err);
             showAlert("Error", "Action failed");
+        }
+    };
+
+    // Handle Team Requests
+    const handleRequestAction = async (userId, action) => {
+        try {
+            if (action === 'approve') {
+                await api.put(`/user/team-requests/${userId}/approve`);
+                showAlert("Success", "Team member approved!");
+                // Refresh team list and requests
+                const [teamRes, reqRes] = await Promise.all([
+                    api.get('/user/my-team'),
+                    api.get('/user/team-requests')
+                ]);
+                setMetrics(prev => ({ ...prev, teamMembers: teamRes.data.team }));
+                setTeamRequests(reqRes.data || []);
+            } else {
+                await api.put(`/user/team-requests/${userId}/reject`);
+                showAlert("Success", "Request rejected.");
+                setTeamRequests(prev => prev.filter(u => u._id !== userId));
+            }
+        } catch (err) {
+            console.error("Request action failed:", err);
+            showAlert("Error", "Failed to process request");
         }
     };
     // Action Handlers ends here
@@ -176,13 +203,31 @@ const ManagerDashboard = ({ user }) => {
 
                                         <div className="mb-4">
                                             <p className="text-sm text-slate-300 mb-2 font-medium">Goal Focus:</p>
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="flex flex-wrap gap-2 mb-3">
                                                 {idp.skillsToImprove?.map((s, i) => (
                                                     <span key={i} className="text-xs bg-purple-500/10 text-purple-300 border border-purple-500/20 px-2 py-1 rounded">
                                                         {s.skill?.name}
                                                     </span>
                                                 ))}
                                             </div>
+
+                                            {/* Budget Calculation */}
+                                            {(() => {
+                                                const totalCost = idp.recommendedResources?.reduce((sum, item) => {
+                                                    const cost = item.resource?.cost || 0;
+                                                    return sum + cost;
+                                                }, 0) || 0;
+
+                                                if (totalCost > 0) {
+                                                    return (
+                                                        <div className="flex items-center gap-2 text-sm text-slate-300 bg-emerald-500/5 px-3 py-2 rounded-lg border border-emerald-500/20">
+                                                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">$</div>
+                                                            <span>Budget Required: <strong className="text-emerald-400">${totalCost.toLocaleString()}</strong></span>
+                                                        </div>
+                                                    );
+                                                }
+                                                return <p className="text-xs text-slate-500">No budget required.</p>;
+                                            })()}
                                         </div>
 
                                         <div className="flex gap-3 pt-3 border-t border-slate-700/50">
@@ -197,6 +242,53 @@ const ManagerDashboard = ({ user }) => {
                             </div>
                         )}
                     </div>
+                    {/* Pending Approvals Section ends here */}
+
+                    {/* ================================================================================================= */}
+                    {/* Team Join Requests Section */}
+                    {teamRequests.length > 0 && (
+                        <div id="requests" className="bg-slate-900 border border-slate-800 rounded-2xl p-6 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-white">Team Join Requests</h3>
+                                <span className="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-sm font-medium">{teamRequests.length} Requests</span>
+                            </div>
+                            <div className="space-y-4">
+                                {teamRequests.map(req => (
+                                    <div key={req._id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex items-center justify-between gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-slate-700 overflow-hidden flex items-center justify-center">
+                                                {req.avatar ? (
+                                                    <img src={`/api/user/${req._id}/avatar`} alt={req.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <User className="w-6 h-6 text-slate-400" />
+                                                )}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-white">{req.name}</h4>
+                                                <p className="text-sm text-slate-400">{req.email}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleRequestAction(req._id, 'approve')}
+                                                className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg transition-colors"
+                                                title="Approve"
+                                            >
+                                                <CheckCircle className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleRequestAction(req._id, 'reject')}
+                                                className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-colors"
+                                                title="Reject"
+                                            >
+                                                <XCircle className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     {/* Pending Approvals Section ends here */}
 
                     {/* ================================================================================================= */}

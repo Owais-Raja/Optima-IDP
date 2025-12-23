@@ -42,6 +42,7 @@ const AuditLogSchema = new mongoose.Schema(
                 "DELETE_USER",
                 "INVITE_USER",
                 "BULK_IMPORT_USERS",
+                "RESOLVE_NAME_CHANGE",
 
                 // Role management
                 "CHANGE_ROLE",

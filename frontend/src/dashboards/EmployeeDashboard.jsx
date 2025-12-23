@@ -5,7 +5,7 @@ import { WelcomeBanner } from '../components/DashboardWidgets';
 import Announcements from '../components/Announcements';
 import JoinTeam from '../components/JoinTeam';
 import { Link, useLocation } from 'react-router-dom';
-import { Clock, BookOpen, ArrowRight, Calendar, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
+import { Clock, BookOpen, ArrowRight, Calendar, CheckCircle, AlertCircle, TrendingUp, ThumbsUp, ThumbsDown, XCircle } from 'lucide-react';
 
 import { useAuth } from '../store/useAuth';
 import CreateIDPModal from '../components/IDP/CreateIDPModal';
@@ -55,7 +55,7 @@ const EmployeeDashboard = ({ user, isCreateModalOpen, setIsCreateModalOpen }) =>
             const [metricsRes, idpRes, recRes, deadlineRes, annRes, checkinRes] = await Promise.all([
                 api.get('/idp/metrics/employee'),
                 api.get('/idp/my-idps'),
-                api.post('/recommend/resources', { user_skills: [] }),
+                api.post('/recommend/resources'),
                 api.get('/emp-dashboard/deadlines'),
                 api.get('/announcements'),
                 api.get('/manager/checkins')
@@ -103,6 +103,23 @@ const EmployeeDashboard = ({ user, isCreateModalOpen, setIsCreateModalOpen }) =>
     const refreshData = () => {
         setLoading(true);
         fetchData();
+    };
+
+
+    const handleFeedback = async (e, resourceId, action) => {
+        e.stopPropagation(); // Prevent card click
+        try {
+            await api.post('/recommend/feedback', { resourceId, action });
+            if (action === 'dismiss' || action === 'dislike') {
+                // Remove from view
+                setRecommendations(prev => prev.filter(r => (r._id || r.resourceId) !== resourceId));
+            } else if (action === 'like') {
+                // Optional: Show toast
+                console.log("Liked!");
+            }
+        } catch (err) {
+            console.error("Feedback failed", err);
+        }
     };
     // Helper Functions ends here
 
@@ -345,7 +362,32 @@ const EmployeeDashboard = ({ user, isCreateModalOpen, setIsCreateModalOpen }) =>
                                                 <span className="text-xs text-slate-500 font-medium">{item.duration || 'N/A'}</span>
                                             </div>
                                             <h4 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors mb-2 line-clamp-2">{item.title}</h4>
-                                            <p className="text-xs text-slate-500 mt-auto">By {item.provider || item.author || 'Optima AI'}</p>
+                                            <p className="text-xs text-slate-500 mt-auto mb-3">By {item.provider || item.author || 'Optima AI'}</p>
+
+                                            <div className="flex items-center gap-2 mt-auto pt-2 border-t border-slate-700/50">
+                                                <button
+                                                    onClick={(e) => handleFeedback(e, item._id || item.resourceId, 'like')}
+                                                    className="p-1.5 text-slate-500 hover:text-green-400 hover:bg-green-400/10 rounded-lg transition-colors"
+                                                    title="Helpful"
+                                                >
+                                                    <ThumbsUp className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => handleFeedback(e, item._id || item.resourceId, 'dislike')}
+                                                    className="p-1.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded-lg transition-colors"
+                                                    title="Not relevant"
+                                                >
+                                                    <ThumbsDown className="w-4 h-4" />
+                                                </button>
+                                                <div className="flex-1"></div>
+                                                <button
+                                                    onClick={(e) => handleFeedback(e, item._id || item.resourceId, 'dismiss')}
+                                                    className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                                    title="Dismiss"
+                                                >
+                                                    <XCircle className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))
                                 ) : (

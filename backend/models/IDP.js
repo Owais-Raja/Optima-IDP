@@ -32,7 +32,10 @@ const IDPSchema = new mongoose.Schema(
           required: true,
         },
         currentLevel: { type: Number, default: 1 },
-        targetLevel: { type: Number, default: 5 }
+        currentLevel: { type: Number, default: 1 },
+        targetLevel: { type: Number, default: 5 },
+        evidence: { type: String, default: "" }, // URL to proof or file path
+        verificationMethod: { type: String, enum: ["none", "quiz", "manual", "certificate"], default: "none" }
       }
     ],
 
@@ -50,7 +53,9 @@ const IDPSchema = new mongoose.Schema(
         },
         completedAt: {
           type: Date
-        }
+        },
+        evidence: { type: String, default: "" }, // URL to proof of completion
+        verificationMethod: { type: String, enum: ["none", "quiz", "manual", "certificate"], default: "none" }
       }
     ],
 
@@ -73,11 +78,7 @@ const IDPSchema = new mongoose.Schema(
       default: "draft"
     },
 
-    // Track previous status to revert correctly if un-completed
-    previousStatus: {
-      type: String,
-      default: null
-    },
+
 
     // Target Date for completion (Used for Deadlines)
     targetCompletionDate: {

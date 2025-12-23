@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const IDP = require("../models/idp");
+const AuditLog = require("../models/AuditLog");
 const bcrypt = require("bcryptjs");
 
 /**
@@ -206,8 +207,12 @@ exports.updateProfile = async (req, res) => {
     if (name) {
       if (req.user.role === 'admin') {
         user.name = name;
+      } else {
+        // Stop non-admins from updating name directly
+        return res.status(403).json({
+          message: "You cannot change your name directly. Please use the 'Request Update' button."
+        });
       }
-      // Non-admins cannot update name directly via this endpoint
     }
 
     // Update Preferences
@@ -397,6 +402,22 @@ exports.resolveProfileUpdate = async (req, res) => {
     }
 
     await user.save();
+
+    // Log to Audit Log
+    await AuditLog.log({
+      company: req.user.company || "Default", // Admin's company
+      actor: req.user.id,
+      action: "RESOLVE_NAME_CHANGE",
+      target: user._id.toString(),
+      targetType: "user",
+      details: {
+        field: "name",
+        oldValue: user.name, // Technically we've already updated it if approved, but 'oldValue' implies logic. 
+        // Better: just log decision
+        decision: status,
+        requestedValue: user.name // if approved, it's the new name
+      }
+    });
 
     res.json({
       message: `Request ${status} successfully`,

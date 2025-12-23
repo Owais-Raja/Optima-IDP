@@ -60,10 +60,10 @@ function Profile() {
       const res = await api.get('/user/me');
       setProfile(res.data.user);
 
-      // Acknowledge notification if status is resolved (clears it for next reload)
-      if (['approved', 'rejected'].includes(res.data.user.profileUpdateRequest?.status)) {
-        api.post('/user/acknowledge-update').catch(err => console.error("Failed to ack update:", err));
-      }
+      // Manual acknowledgment required now, so we removed the auto-ack
+      // if (['approved', 'rejected'].includes(res.data.user.profileUpdateRequest?.status)) {
+      //   api.post('/user/acknowledge-update').catch(err => console.error("Failed to ack update:", err));
+      // }
 
     } catch (err) {
       console.error("Failed to fetch profile:", err);
@@ -366,14 +366,39 @@ function Profile() {
                       className="w-full bg-slate-950/50 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
                     />
                     {profile?.profileUpdateRequest?.status === 'pending' && (
-                      <p className="text-xs text-amber-400 mt-2 bg-amber-400/10 p-2 rounded">
-                        <span className="font-bold">Pending Approval:</span> Request to change name to "{profile.profileUpdateRequest.value}"
-                      </p>
+                      <div className="text-xs text-amber-400 mt-2 bg-amber-400/10 p-3 rounded flex justify-between items-center transition-all animate-in fade-in">
+                        <span><span className="font-bold">Pending Approval:</span> Request to change name to "{profile.profileUpdateRequest.value}"</span>
+                      </div>
                     )}
                     {profile?.profileUpdateRequest?.status === 'rejected' && (
-                      <p className="text-xs text-red-400 mt-2 bg-red-400/10 p-2 rounded">
-                        <span className="font-bold">Request Rejected:</span> Change to "{profile.profileUpdateRequest.value}" was declined by admin.
-                      </p>
+                      <div className="text-xs text-red-400 mt-2 bg-red-400/10 p-3 rounded flex justify-between items-center transition-all animate-in fade-in">
+                        <span><span className="font-bold">Request Rejected:</span> Change to "{profile.profileUpdateRequest.value}" was declined by admin.</span>
+                        <button
+                          onClick={() => {
+                            api.post('/user/acknowledge-update').then(() => {
+                              setProfile(prev => ({ ...prev, profileUpdateRequest: null }));
+                            });
+                          }}
+                          className="text-red-400 hover:text-white underline ml-4 font-bold"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    )}
+                    {profile?.profileUpdateRequest?.status === 'approved' && (
+                      <div className="text-xs text-emerald-400 mt-2 bg-emerald-400/10 p-3 rounded flex justify-between items-center transition-all animate-in fade-in">
+                        <span><span className="font-bold">Approved:</span> Name change request accepted.</span>
+                        <button
+                          onClick={() => {
+                            api.post('/user/acknowledge-update').then(() => {
+                              setProfile(prev => ({ ...prev, profileUpdateRequest: null }));
+                            });
+                          }}
+                          className="text-emerald-400 hover:text-white underline ml-4 font-bold"
+                        >
+                          Clear
+                        </button>
+                      </div>
                     )}
                   </div>
 

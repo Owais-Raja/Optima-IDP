@@ -73,4 +73,28 @@ router.post("/resources", authMiddleware, recommenderController.getSuggestions);
  */
 router.post("/similar-skills", authMiddleware, recommendController.recommendSimilarSkills);
 
+/**
+ * @swagger
+ * /api/recommend/feedback:
+ *   post:
+ *     summary: Submit feedback for a recommendation
+ *     tags: [Recommendations]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               resourceId:
+ *                 type: string
+ *               action:
+ *                 type: string
+ *                 enum: [view, click, like, dislike, dismiss]
+ *     responses:
+ *       200:
+ *         description: Feedback recorded
+ */
+router.post("/feedback", authMiddleware, recommenderController.trackFeedback);
+
 module.exports = router;

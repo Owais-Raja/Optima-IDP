@@ -3,20 +3,9 @@ const User = require("../models/user");
 const Skill = require("../models/skill");
 const Resource = require("../models/resource");
 const recommenderService = require("../services/recommender.service");
-const Kudos = require("../models/kudos");
 
-// --- Helper: Random Quote Generator ---
-const getRandomQuote = () => {
-  const quotes = [
-    { text: "The capacity to learn is a gift; the ability to learn is a skill; the willingness to learn is a choice.", author: "Brian Herbert" },
-    { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
-    { text: "Tell me and I forget. Teach me and I remember. Involve me and I learn.", author: "Benjamin Franklin" },
-    { text: "Change is the end result of all true learning.", author: "Leo Buscaglia" },
-    { text: "Learning never exhausts the mind.", author: "Leonardo da Vinci" },
-    { text: "For the things we have to learn before we can do them, we learn by doing them.", author: "Aristotle" }
-  ];
-  return quotes[Math.floor(Math.random() * quotes.length)];
-};
+
+
 
 // --- Helper: Calculate Hours Learned ---
 // Assumes 'duration' in Resource is a string like "2 hours", "45 mins", etc.
@@ -442,6 +431,9 @@ exports.toggleResourceStatus = async (req, res) => {
       } else {
         item.completedAt = null;
       }
+      // Update evidence and verification method if provided
+      if (req.body.evidence !== undefined) item.evidence = req.body.evidence;
+      if (req.body.verificationMethod !== undefined) item.verificationMethod = req.body.verificationMethod;
     });
 
     // CHECK IF ALL RESOURCES ARE COMPLETED
@@ -449,19 +441,13 @@ exports.toggleResourceStatus = async (req, res) => {
 
     if (allCompleted) {
       // Save current status before marking pending_completion, if it wasn't already pending_completion
-      if (idp.status !== 'pending_completion' && idp.status !== 'completed') {
-        idp.previousStatus = idp.status;
-      }
+
       // Move to pending_completion instead of completed
       idp.status = 'pending_completion';
 
       // NOTE: Skill updates are now moved to approveIDP, waiting for manager approval.
 
-    } else if ((idp.status === 'completed' || idp.status === 'pending_completion') && !allCompleted) {
-      // Revert to previous status if available, else default to 'approved'
-      idp.status = idp.previousStatus || 'approved';
-      // Clear previous status after revert (optional, but keeps it clean)
-      idp.previousStatus = null;
+      idp.status = 'approved';
     }
 
     // Explicitly mark modified for nested arrays
@@ -641,6 +627,7 @@ exports.getPendingIDPs = async (req, res) => {
     })
       .populate("employee", "name email avatar") // Fetch employee details
       .populate("skillsToImprove.skill", "name")
+      .populate("recommendedResources.resource") // Populate for cost calc
       .sort({ createdAt: -1 });
 
     res.json({ idps });
@@ -740,7 +727,7 @@ exports.getEmployeeMetrics = async (req, res) => {
       skillGrowth,
       recentActivity,
       recentActivity,
-      dailyQuote: getRandomQuote(),
+
       hoursLearned: await calculateHoursLearned(userId),
       learnerLevel: calculateLearnerLevel(await calculateHoursLearned(userId)),
       achievements: calculateAchievements(
@@ -748,8 +735,7 @@ exports.getEmployeeMetrics = async (req, res) => {
         completedIDPs,
         (await User.findById(userId))?.skills?.length || 0
       ),
-      currentFocus: await calculateCurrentFocus(userId),
-      recentKudos: await Kudos.find({ to: userId }).sort({ createdAt: -1 }).limit(3).populate('from', 'name')
+      currentFocus: await calculateCurrentFocus(userId)
     });
   } catch (error) {
     console.error("Get Employee Metrics Error:", error);

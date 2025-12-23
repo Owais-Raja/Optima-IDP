@@ -4,8 +4,10 @@ const Skill = require("../models/skill");
 const Resource = require("../models/resource");
 const PerformanceReport = require("../models/PerformanceReport");
 const IDP = require("../models/idp");
+const Feedback = require("../models/feedback");
 const fs = require("fs");
 const path = require("path");
+const logger = require("../config/logger"); // Import logger
 
 const CONFIG_PATH = path.join(__dirname, "../../config/recommender-weights.json");
 
@@ -49,20 +51,34 @@ exports.getSuggestions = async (req, res) => {
         const userId = req.user._id;
         const userCompany = req.user.company;
         // Expect targetSkills in body, e.g., [{ skillId: "...", targetLevel: 5 }]
-        const { targetSkills } = req.body;
+        const { targetSkills } = req.body || {};
 
         // 1. Fetch User Data (Current Skills)
+        logger.info(`DEBUG: Fetching user ${userId}`);
         const user = await User.findById(userId).populate("skills.skillId").lean();
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
+        logger.info("DEBUG: User fetched");
 
-        // Transform user skills to format expected by Python service
+        // 0. Fetch User's Dismissed Resources to Filter Out
+        logger.info("DEBUG: Fetching dismissed resources");
+        const dismissedResources = await Feedback.find({
+            user: userId,
+            action: { $in: ['dismiss', 'dislike'] }
+        }).distinct('resource');
+
+        const dismissedIds = new Set(dismissedResources.map(id => id.toString()));
+        logger.info(`DEBUG: Dismissed resources fetched: ${dismissedIds.size}`);
+
         // Python expects: { "skillId": "...", "level": 3 }
-        const userSkills = user.skills.map(s => ({
-            skillId: s.skillId._id.toString(),
-            level: s.level
-        }));
+        const userSkills = user.skills
+            .filter(s => s.skillId) // Filter out null populated skills (if skill was deleted)
+            .map(s => ({
+                skillId: s.skillId._id.toString(),
+                level: s.level
+            }));
+        logger.info(`DEBUG: User skills mapped: ${userSkills.length}`);
 
         // 2. Fetch User Goals (from latest IDP)
         // We want to send free-text goals to the AI for semantic matching
@@ -94,7 +110,8 @@ exports.getSuggestions = async (req, res) => {
 
         // Fetch resources created by these users OR created by system admins (if we had a super-admin concept, but here strictly company)
         const allResources = await Resource.find({
-            createdBy: { $in: companyUserIds }
+            createdBy: { $in: companyUserIds },
+            _id: { $nin: Array.from(dismissedIds) } // Exclude dismissed
         }).populate("createdBy", "name").lean();
 
         // 5. Fetch Peer Data (Collaborative Filtering - Same Company Only)
@@ -121,15 +138,18 @@ exports.getSuggestions = async (req, res) => {
 
         const peerData = allUsers.map(peer => ({
             userId: peer._id.toString(),
-            skills: peer.skills.map(s => ({
-                skillId: s.skillId.toString(),
-                level: s.level || 1
-            })),
+            skills: peer.skills
+                .filter(s => s.skillId) // Filter invalid skills
+                .map(s => ({
+                    skillId: s.skillId.toString(),
+                    level: s.level || 1
+                })),
             resources: Array.from(userResourcesMap[peer._id.toString()] || [])
         })).filter(p => p.resources.length > 0 || p.skills.length > 0);
 
 
         // Sanitize IDs
+        logger.info("DEBUG: Peer data constructed");
         const formattedSkills = allSkills.map(s => ({
             ...s,
             _id: s._id.toString()
@@ -139,8 +159,11 @@ exports.getSuggestions = async (req, res) => {
         const formattedResources = allResources.map(r => ({
             ...r,
             _id: r._id.toString(),
-            // IF provider is 'Unknown', use creator's name
-            provider: (r.provider && r.provider !== 'Unknown') ? r.provider : (r.createdBy ? r.createdBy.name : 'Unknown'),
+            // IF provider is 'Unknown', use creator's name (safety check for createdBy)
+            provider: (r.provider && r.provider !== 'Unknown')
+                ? r.provider
+                : (r.createdBy && r.createdBy.name ? r.createdBy.name : 'Unknown'),
+            // Safety check for skill
             skill: r.skill ? { ...r.skill, _id: r.skill.toString() } : null
         }));
 
@@ -149,11 +172,11 @@ exports.getSuggestions = async (req, res) => {
 
         const payload = {
             user_skills: userSkills,
-            skills_to_improve: targetSkills || [],
+            target_skills: targetSkills || [],
             performance_reports: performanceReports,
             resources: formattedResources,
             skills: formattedSkills,
-            user_skills_data: [],
+            user_skills_data: userSkills, // Redundant with user_skills, but kept for consistency if expected by AI
             peer_data: peerData,
             limit: 10,
             persona: user.role,
@@ -161,13 +184,15 @@ exports.getSuggestions = async (req, res) => {
             goal_text: goalText  // NEW: Pass goal text to AI
         };
 
+        logger.info("DEBUG: Payload constructed, calling AI service...");
+
         let aiResponse;
         try {
             // 7. Call Python Service
-            console.log("Calling Python AI Service with goals:", goalText);
+            logger.info(`Calling Python AI Service with goals: ${goalText}`);
             aiResponse = await RecommenderService.getRecommendedResources(payload);
         } catch (aiError) {
-            console.error("⚠️ Python AI Service Failed (Falling back to static list):", aiError.message);
+            logger.error(`⚠️ Python AI Service Failed (Falling back to static list): ${aiError.message}`);
             // FALLBACK: Return random resources if AI service is down
             const shuffled = formattedResources.sort(() => 0.5 - Math.random());
             aiResponse = {
@@ -178,6 +203,8 @@ exports.getSuggestions = async (req, res) => {
                     type: r.type,
                     url: r.url,
                     duration: r.duration,
+                    cost: r.cost, // Add cost
+                    currency: r.currency, // Add currency
                     author: r.createdBy ? r.createdBy.name : 'Unknown'
                 }))
             };
@@ -204,11 +231,41 @@ exports.getSuggestions = async (req, res) => {
             aiResponse.recommendations = uniqueRecs;
         }
 
-        console.log(`Returning ${aiResponse.recommendations.length} recommendations.`);
         return res.status(200).json(aiResponse);
 
     } catch (error) {
-        console.error("Controller Error:", error);
+        logger.error(`Controller Error: ${error.message}`, { stack: error.stack });
         return res.status(500).json({ message: "Failed to generate suggestions", error: error.message });
+    }
+};
+
+/**
+ * TRACK USER FEEDBACK
+ * POST /api/recommend/feedback
+ */
+exports.trackFeedback = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { resourceId, action } = req.body; // action: 'like', 'dislike', 'dismiss', 'click'
+
+        if (!resourceId || !action) {
+            return res.status(400).json({ message: "Missing resourceId or action" });
+        }
+
+        // Upsert feedback (if user changes mind from like to dislike, update it)
+        // Or strictly log history? For simple recommender filtering, upserting latest unique action is easier
+        // But for ML training, log history is better.
+        // Let's just create a new record for history.
+        await Feedback.create({
+            user: userId,
+            resource: resourceId,
+            action
+        });
+
+        res.json({ message: "Feedback recorded" });
+
+    } catch (error) {
+        console.error("Feedback Error:", error);
+        res.status(500).json({ message: "Failed to record feedback" });
     }
 };

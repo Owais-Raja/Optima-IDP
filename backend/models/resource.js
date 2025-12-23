@@ -82,6 +82,16 @@ const ResourceSchema = new mongoose.Schema(
       default: ""
     },
 
+    // Cost of the resource (0 for free)
+    cost: {
+      type: Number,
+      default: 0
+    },
+    currency: {
+      type: String,
+      default: "USD"
+    },
+
     // Who created the resource
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

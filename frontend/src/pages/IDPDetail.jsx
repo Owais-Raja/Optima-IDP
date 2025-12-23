@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { ArrowLeft, BookOpen, CheckCircle, Clock, Calendar, Trash2, MessageSquare, Plus } from 'lucide-react';
+import { ArrowLeft, BookOpen, CheckCircle, Clock, Calendar, Trash2, MessageSquare, Plus, Link as LinkIcon, Edit2 } from 'lucide-react';
 import ConfirmationModal from '../components/Modals/ConfirmationModal';
 import ResourcePickerModal from '../components/Modals/ResourcePickerModal';
 import FeedbackModal from '../components/Modals/FeedbackModal';
+import EvidenceModal from '../components/Modals/EvidenceModal';
 import { useAuth } from '../store/useAuth';
 
 
@@ -31,7 +32,10 @@ const IDPDetail = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showResourcePicker, setShowResourcePicker] = useState(false);
     const [feedbackModal, setFeedbackModal] = useState({ isOpen: false, status: null });
+    const [evidenceModal, setEvidenceModal] = useState({ isOpen: false, type: null, itemId: null, item: null }); // type: 'resource' or 'skill'
     const [successModal, setSuccessModal] = useState({ isOpen: false, title: "", message: "" });
+    const [history, setHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
     // State Definitions ends here
 
     // =================================================================================================
@@ -42,6 +46,17 @@ const IDPDetail = () => {
             try {
                 const res = await api.get(`/idp/${id}`);
                 setIdp(res.data.idp);
+
+                // If Manager, fetch employee's history
+                if (user?.role === 'manager' && res.data.idp.employee) {
+                    const empId = typeof res.data.idp.employee === 'object' ? res.data.idp.employee._id : res.data.idp.employee;
+                    setHistoryLoading(true);
+                    api.get(`/idp/employee/${empId}`)
+                        .then(hRes => setHistory(hRes.data.idps))
+                        .catch(err => console.error("Failed to load history", err))
+                        .finally(() => setHistoryLoading(false));
+                }
+
             } catch (err) {
                 console.error("Failed to fetch IDP", err);
                 setError("Failed to load IDP details. Please try again.");
@@ -50,8 +65,8 @@ const IDPDetail = () => {
             }
         };
 
-        if (id) fetchIDP();
-    }, [id]);
+        if (id && user) fetchIDP();
+    }, [id, user]);
     // Effects ends here
 
     // =================================================================================================
@@ -59,23 +74,83 @@ const IDPDetail = () => {
     // -------------------------------------------------------------------------------------------------
 
     // Toggle resource completion status
-    const handleResourceToggle = async (resourceId, currentStatus) => {
+    const handleResourceToggleTrigger = (resourceId, currentStatus, currentItem) => {
+        if (currentStatus === 'completed') {
+            // Un-completing -> direct api call (or confirmation? keeping simple)
+            handleResourceToggle(resourceId, 'completed'); // toggle back to pending
+        } else {
+            // Completing -> Open Evidence Modal
+            setEvidenceModal({ isOpen: true, type: 'resource', itemId: resourceId, item: currentItem });
+        }
+    };
+
+    const handleResourceToggle = async (resourceId, currentStatus, evidenceData = {}) => {
         try {
             const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
-            await api.put(`/idp/${id}/resource/${resourceId}`, { status: newStatus });
+            await api.put(`/idp/${id}/resource/${resourceId}`, {
+                status: newStatus,
+                ...evidenceData // { evidence, verificationMethod }
+            });
 
             // Optimistic update
             setIdp(prev => ({
                 ...prev,
                 recommendedResources: prev.recommendedResources.map(r =>
                     (r.resource._id === resourceId || r._id === resourceId)
-                        ? { ...r, status: newStatus }
+                        ? { ...r, status: newStatus, ...evidenceData }
                         : r
                 )
             }));
         } catch (err) {
             console.error("Failed to update resource", err);
         }
+    };
+
+    const handleSkillUpdate = async (skillId, evidenceData) => {
+        try {
+            // We need to update the specific skill in the array.
+            // Using generic Update IDP endpoint.
+            const newSkills = idp.skillsToImprove.map(s => {
+                if (s.skill._id === skillId || s._id === skillId) {
+                    return { ...s, ...evidenceData };
+                }
+                return s;
+            });
+
+            // Transform back to expected format for update (skill ID, targetLevel, etc)
+            // The Update API expects skillsToImprove as objects with { skill: ID, ... }
+            const payload = {
+                ...idp,
+                skillsToImprove: newSkills.map(s => ({
+                    skill: s.skill._id,
+                    currentLevel: s.currentLevel,
+                    targetLevel: s.targetLevel,
+                    evidence: s.evidence,
+                    verificationMethod: s.verificationMethod
+                })),
+                // Ensure resources are formatted correctly too (preserve all fields, just flatten resource ID)
+                recommendedResources: idp.recommendedResources.map(r => ({
+                    ...r,
+                    resource: r.resource?._id || r.resource
+                }))
+            };
+
+            const res = await api.put(`/idp/update/${id}`, payload);
+            setIdp(res.data.idp);
+            setEvidenceModal({ isOpen: false, type: null, itemId: null });
+        } catch (err) {
+            console.error("Failed to update skill", err);
+            setError("Failed to update skill evidence.");
+        }
+    };
+
+    const handleEvidenceConfirm = (data) => {
+        if (evidenceModal.type === 'resource') {
+            handleResourceToggle(evidenceModal.itemId, 'pending', data);
+        } else if (evidenceModal.type === 'skill') {
+            handleSkillUpdate(evidenceModal.itemId, data);
+        }
+        setEvidenceModal({ isOpen: false, type: null, itemId: null });
     };
 
     const handleDelete = async () => {
@@ -190,18 +265,16 @@ const IDPDetail = () => {
                                 style = 'bg-red-500/10 text-red-400 border border-red-500/20';
                             } else if (idp.status === 'rejected') {
                                 style = 'bg-red-500/10 text-red-400 border border-red-500/20';
-                            } else if (['approved', 'pending_completion'].includes(idp.status)) {
-                                if (progress === 100) {
-                                    label = 'PENDING APPROVAL';
-                                    style = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
-                                } else {
-                                    label = 'PENDING COMPLETION';
-                                    style = 'bg-blue-500/10 text-blue-400 border border-blue-500/20'; // Using Blue for "Pending Completion" (Active) in Detail View, or stick to Green? The dashboard used Green. Let's use Green for consistency.
-                                    style = 'bg-green-500/10 text-green-400 border border-emerald-500/20';
-                                }
+                            } else if (idp.status === 'approved') {
+                                label = 'ACTIVE';
+                                style = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                            } else if (idp.status === 'pending_completion') {
+                                label = 'PENDING COMPLETION';
+                                style = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
                             } else if (idp.status === 'completed') {
                                 style = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
                             } else if (idp.status === 'pending') {
+                                label = 'PENDING APPROVAL';
                                 style = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
                             }
 
@@ -313,7 +386,7 @@ const IDPDetail = () => {
 
                                             <div className="flex items-start gap-4 pr-8">
                                                 <button
-                                                    onClick={() => handleResourceToggle(resource._id, item.status)}
+                                                    onClick={() => handleResourceToggleTrigger(resource._id, item.status, item)}
                                                     className={`mt-1 w-6 h-6 rounded-full border flex items-center justify-center transition-all ${item.status === 'completed'
                                                         ? 'bg-emerald-500 border-emerald-500 text-white'
                                                         : 'border-slate-500 hover:border-purple-400 text-transparent'
@@ -347,7 +420,7 @@ const IDPDetail = () => {
                                                     </div>
 
                                                     {resource.url && (
-                                                        <div className="mt-4">
+                                                        <div className="mt-4 flex flex-wrap gap-4">
                                                             <a
                                                                 href={resource.url}
                                                                 target="_blank"
@@ -356,6 +429,16 @@ const IDPDetail = () => {
                                                             >
                                                                 Open Resource <BookOpen className="w-3 h-3" />
                                                             </a>
+                                                            {item.evidence && (
+                                                                <a
+                                                                    href={item.evidence}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors inline-flex items-center gap-1"
+                                                                >
+                                                                    <LinkIcon className="w-3 h-3" /> View Proof
+                                                                </a>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -392,9 +475,25 @@ const IDPDetail = () => {
                             <h3 className="text-lg font-bold text-white mb-4">Target Skills</h3>
                             <div className="flex flex-wrap gap-2">
                                 {Array.from(new Map(idp.skillsToImprove?.map(item => [item.skill?._id, item])).values()).map((s, idx) => (
-                                    <span key={idx} className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-3 py-1.5 rounded-lg text-sm font-medium">
-                                        {s.skill?.name || "Unknown Skill"}
-                                    </span>
+                                    <div key={idx} className="flex items-center justify-between w-full bg-slate-900/50 border border-slate-800 rounded-lg p-3">
+                                        <div className="flex flex-col">
+                                            <span className="text-purple-400 font-medium text-sm">{s.skill?.name || "Unknown Skill"}</span>
+                                            {s.evidence && (
+                                                <a href={s.evidence} target="_blank" rel="noopener" className="text-xs text-slate-500 hover:text-white flex items-center gap-1 mt-1">
+                                                    <LinkIcon className="w-3 h-3" /> Evidence Linked
+                                                </a>
+                                            )}
+                                        </div>
+                                        {user?.role !== 'manager' && (
+                                            <button
+                                                onClick={() => setEvidenceModal({ isOpen: true, type: 'skill', itemId: s.skill._id || s._id, item: s })}
+                                                className="p-1.5 text-slate-500 hover:text-purple-400 hover:bg-purple-500/10 rounded transition-colors"
+                                                title="Add/Edit Evidence"
+                                            >
+                                                <Edit2 className="w-3 h-3" />
+                                            </button>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -416,6 +515,42 @@ const IDPDetail = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* IDP History (Managers Only) */}
+                        {user?.role === 'manager' && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                                <h3 className="text-lg font-bold text-white mb-4">Previous Plans</h3>
+                                {historyLoading ? (
+                                    <p className="text-slate-500 text-sm">Loading history...</p>
+                                ) : history.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {history.filter(h => h._id !== id).map(h => (
+                                            <Link
+                                                key={h._id}
+                                                to={`/idp/${h._id}`}
+                                                className="block p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-purple-500/30 transition-colors"
+                                            >
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <span className={`text-xs font-bold uppercase ${h.status === 'approved' ? 'text-emerald-400' :
+                                                        h.status === 'completed' ? 'text-blue-400' :
+                                                            'text-amber-400'
+                                                        }`}>
+                                                        {h.status.replace('_', ' ')}
+                                                    </span>
+                                                    <span className="text-xs text-slate-500">{new Date(h.createdAt).toLocaleDateString()}</span>
+                                                </div>
+                                                <p className="text-sm text-slate-300 line-clamp-2">{h.goals || "Untitled Plan"}</p>
+                                            </Link>
+                                        ))}
+                                        {history.filter(h => h._id !== id).length === 0 && (
+                                            <p className="text-slate-500 text-sm italic">No other plans found.</p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-slate-500 text-sm italic">No history found.</p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -456,6 +591,16 @@ const IDPDetail = () => {
                 message={successModal.message}
                 confirmText="OK"
                 showCancel={false}
+            />
+
+            <EvidenceModal
+                isOpen={evidenceModal.isOpen}
+                onClose={() => setEvidenceModal({ isOpen: false, type: null, itemId: null })}
+                onConfirm={handleEvidenceConfirm}
+                title={evidenceModal.type === 'resource' ? "Complete Resource & Add Proof" : "Verify Skill"}
+                showVerificationMethod={evidenceModal.type === 'skill'}
+                defaultEvidence={evidenceModal.item?.evidence || ""}
+                defaultMethod={evidenceModal.item?.verificationMethod || "none"}
             />
         </div >
     );

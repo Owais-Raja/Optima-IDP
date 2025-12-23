@@ -41,13 +41,7 @@ router.delete(
     managerController.deleteCheckin
 );
 
-// Send Quick Kudos
-router.post(
-    "/kudos",
-    authMiddleware,
-    roleMiddleware("manager", "admin"),
-    managerController.sendKudos
-);
+
 
 // Reports
 const reportController = require("../../controllers/report.controller");

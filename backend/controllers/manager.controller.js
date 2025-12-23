@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const User = require("../models/user");
 const Performance = require("../models/PerformanceReport"); // Assuming this exists or similar
-const Kudos = require("../models/kudos");
 const Skill = require("../models/skill");
 
 const IDP = require("../models/idp"); // Added IDP model import
@@ -174,28 +173,7 @@ exports.createCheckin = async (req, res) => {
     }
 };
 
-/**
- * Send Kudos
- */
-exports.sendKudos = async (req, res) => {
-    try {
-        const { toUserId, type, message } = req.body;
 
-        const kudos = new Kudos({
-            from: req.user.id,
-            to: toUserId,
-            type,
-            message
-        });
-
-        await kudos.save();
-
-        res.status(201).json({ message: "Kudos sent successfully", kudos });
-    } catch (err) {
-        console.error("Send Kudos error:", err);
-        res.status(500).json({ message: "Server Error" });
-    }
-};
 
 /**
  * Delete a Check-in
